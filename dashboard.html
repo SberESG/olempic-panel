@@ -200,6 +200,43 @@ main{max-width:1400px;margin:0 auto;padding:24px}
 .nutrition-diary-header{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:12px 14px;border-bottom:2px solid var(--b);font-size:11px;font-weight:700;color:var(--s2);text-transform:uppercase;background:var(--bg)}
 .nutrition-diary-full{background:#fff;border:1px solid var(--b);border-radius:10px;overflow:hidden}
 .nutrition-hint{font-size:12px;color:var(--m);margin-top:8px}
+.nutrition-day-detail{border-bottom:1px solid var(--b);padding:16px 18px}
+.nutrition-day-detail:last-child{border-bottom:none}
+.nut-day-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.nut-day-head h4{font-size:15px;font-weight:600;color:var(--s);margin:0}
+.nut-tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px}
+.nut-tag-ok{background:#dcfce7;color:#166534}
+.nut-tag-warn{background:#fef3c7;color:#92400e}
+.nut-tag-high{background:#ffedd5;color:#c2410c}
+.nut-day-metrics{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px}
+.nut-day-metrics .nut-num{font-size:18px;font-weight:700;color:var(--s)}
+.nut-day-metrics .nut-unit-sm{font-size:12px;color:var(--m)}
+.nut-day-metrics .nut-pct{font-size:12px;margin-top:2px}
+.nut-day-meals,.nut-day-notes{margin-top:10px;font-size:13px}
+.nut-day-meals p,.nut-day-notes p{margin:4px 0 0;color:var(--s2);line-height:1.4}
+.placeholder-tab{padding:24px;text-align:center;color:var(--m)}
+.tab-section-title{font-size:14px;font-weight:600;color:var(--s2);margin-bottom:12px}
+.symp-stats,.analyses-stats,.supp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.symp-stat,.analyses-stat,.supp-stat{background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:14px 16px}
+.symp-stat h4,.analyses-stat h4,.supp-stat h4{font-size:11px;font-weight:700;color:var(--m);text-transform:uppercase;margin-bottom:6px}
+.symp-stat .val,.analyses-stat .val,.supp-stat .val{font-size:20px;font-weight:700;color:var(--s)}
+.history-list{display:flex;flex-direction:column;gap:0}
+.history-item{border-bottom:1px solid var(--b);padding:14px 16px}
+.history-item:last-child{border-bottom:none}
+.notes-list .note-item{border-bottom:1px solid var(--b);padding:16px 18px}
+.notes-list .note-item:last-child{border-bottom:none}
+.note-item h4{font-size:14px;font-weight:600;margin-bottom:6px}
+.note-item .note-meta{font-size:12px;color:var(--m);margin-bottom:8px}
+.note-item .note-content{font-size:13px;color:var(--s2);line-height:1.5}
+.chat-msg{margin-bottom:16px;display:flex;gap:10px}
+.chat-msg.doctor .chat-bubble{background:#f0fdf9;border:1px solid var(--t)}
+.chat-msg.user .chat-bubble{background:var(--bg);border:1px solid var(--b)}
+.chat-bubble{padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.4;max-width:85%}
+.chat-meta{font-size:11px;color:var(--m);margin-bottom:4px}
+.chat-input-wrap{display:flex;gap:10px;margin-top:16px;align-items:flex-end}
+.chat-input-wrap textarea{flex:1;min-height:80px;border:1px solid var(--b);border-radius:8px;padding:10px 12px;font-size:13px;resize:vertical}
+.chat-send{background:var(--t);color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer}
+.chat-send:hover{background:var(--td)}
 </style>
 </head>
 <body>
@@ -268,6 +305,8 @@ main{max-width:1400px;margin:0 auto;padding:24px}
         <button type="button" class="profile-tab" data-tab="analyses" onclick="switchProfileTab('analyses')">Analyses</button>
         <button type="button" class="profile-tab" data-tab="nutrition" onclick="switchProfileTab('nutrition')">Nutrition</button>
         <button type="button" class="profile-tab" data-tab="supplements" onclick="switchProfileTab('supplements')">Supplements</button>
+        <button type="button" class="profile-tab" data-tab="ai-chat" onclick="switchProfileTab('ai-chat')">AI Chat</button>
+        <button type="button" class="profile-tab" data-tab="doctor-chat" onclick="switchProfileTab('doctor-chat')">Doctor Chat</button>
         <button type="button" class="profile-tab" data-tab="notes" onclick="switchProfileTab('notes')">Notes</button>
       </nav>
       <div class="profile-tab-panels">
@@ -336,8 +375,24 @@ main{max-width:1400px;margin:0 auto;padding:24px}
           </div>
           <div class="data-table-wrap"><h3>Injection history</h3><div id="injectionHistoryList" class="inj-list"></div></div>
         </div>
-        <div id="tab-symptoms" class="profile-tab-panel"><div class="placeholder-tab"><p>Symptoms history and reports.</p></div></div>
-        <div id="tab-analyses" class="profile-tab-panel"><div class="placeholder-tab"><p>Lab analyses and results.</p></div></div>
+        <div id="tab-symptoms" class="profile-tab-panel">
+          <div class="symp-stats">
+            <div class="symp-stat"><h4>Current severity</h4><span class="val" id="sympSeverity">—</span></div>
+            <div class="symp-stat"><h4>Total reports</h4><span class="val" id="sympTotal">—</span></div>
+            <div class="symp-stat"><h4>Severe episodes</h4><span class="val" id="sympSevere">—</span></div>
+          </div>
+          <h3 class="tab-section-title">Side effects history</h3>
+          <div id="symptomsHistoryList" class="history-list data-table-wrap"></div>
+        </div>
+        <div id="tab-analyses" class="profile-tab-panel">
+          <div class="analyses-stats">
+            <div class="analyses-stat"><h4>Total analyses</h4><span class="val" id="analysesTotal">—</span></div>
+            <div class="analyses-stat"><h4>Pending</h4><span class="val" id="analysesPending">—</span></div>
+            <div class="analyses-stat"><h4>Abnormal</h4><span class="val" id="analysesAbnormal">—</span></div>
+          </div>
+          <h3 class="tab-section-title">Analyses history</h3>
+          <div id="analysesHistoryList" class="history-list data-table-wrap"></div>
+        </div>
         <div id="tab-nutrition" class="profile-tab-panel">
           <div class="nutrition-cards">
             <div class="nutrition-card"><h4>Average calories</h4><span id="nutAvgCal">—</span><span class="nut-unit">kcal/day</span></div>
@@ -354,8 +409,43 @@ main{max-width:1400px;margin:0 auto;padding:24px}
           </div>
           <div class="nutrition-diary-full" id="nutritionDiaryFull"><div class="nutrition-diary-loading">Loading…</div></div>
         </div>
-        <div id="tab-supplements" class="profile-tab-panel"><div class="placeholder-tab"><p>Supplements and vitamins.</p></div></div>
-        <div id="tab-notes" class="profile-tab-panel"><div class="placeholder-tab"><p>Doctor notes.</p></div></div>
+        <div id="tab-supplements" class="profile-tab-panel">
+          <div class="supp-stats">
+            <div class="supp-stat"><h4>Active supplements</h4><span class="val" id="suppActive">—</span></div>
+            <div class="supp-stat"><h4>Compliance</h4><span class="val" id="suppCompliance">—</span></div>
+            <div class="supp-stat"><h4>Missed doses</h4><span class="val" id="suppMissed">—</span></div>
+          </div>
+          <h3 class="tab-section-title">Prescribed supplements</h3>
+          <div id="supplementsList" class="history-list data-table-wrap"></div>
+          <h3 class="tab-section-title" style="margin-top:20px">Intake history</h3>
+          <div id="supplementsHistoryList" class="history-list data-table-wrap"></div>
+        </div>
+        <div id="tab-ai-chat" class="profile-tab-panel">
+          <div id="aiChatMessages" class="history-list"></div>
+          <div class="chat-input-wrap">
+            <textarea id="aiChatInput" placeholder="Type a message..."></textarea>
+            <button type="button" class="chat-send" onclick="sendAIChatMessage()"><i class="fas fa-paper-plane"></i> Send</button>
+          </div>
+        </div>
+        <div id="tab-doctor-chat" class="profile-tab-panel">
+          <div id="doctorChatMessages" class="history-list"></div>
+          <div style="margin-top:16px">
+            <label class="fl" style="margin-bottom:6px">Template</label>
+            <select id="doctorChatTemplate" class="fs" onchange="fillDoctorTemplate(this.value)" style="margin-bottom:10px">
+              <option value="">Choose template or type your own</option>
+              <option value="How are you feeling?">How are you feeling?</option>
+              <option value="Remember to take your injections regularly">Remember to take your injections regularly</option>
+              <option value="Time for lab tests">Time for lab tests</option>
+              <option value="Great progress!">Great progress!</option>
+            </select>
+            <textarea id="doctorChatInput" placeholder="Message to patient..." style="min-height:80px;width:100%;border:1px solid var(--b);border-radius:8px;padding:10px 12px;font-size:13px"></textarea>
+            <button type="button" class="chat-send" style="margin-top:10px" onclick="sendDoctorChatMessage()"><i class="fas fa-paper-plane"></i> Send</button>
+          </div>
+        </div>
+        <div id="tab-notes" class="profile-tab-panel">
+          <div style="margin-bottom:16px"><button type="button" class="chat-send" onclick="openAddNoteModal()"><i class="fas fa-plus"></i> Add note</button></div>
+          <div id="notesList" class="notes-list"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -782,7 +872,11 @@ function openProfile(idx){
   document.getElementById('raLastSymptom').textContent='—';
 
   switchProfileTab('overview');
-  if(currentPatientId){ loadWeightChart(); loadWeightHistory(); loadInjections(); loadNutritionFull(); }
+  if(currentPatientId){
+    loadWeightChart(); loadWeightHistory(); loadInjections(); loadNutritionFull();
+    loadSymptoms(); loadAnalyses(); loadSupplements(); loadNotes();
+    loadAIChat(); loadDoctorChat();
+  }
 }
 
 function backToList(){
@@ -797,6 +891,7 @@ function switchProfileTab(name){
   document.querySelectorAll('.profile-tab').forEach(t=>{ t.classList.toggle('active',t.dataset.tab===name); });
   document.querySelectorAll('.profile-tab-panel').forEach(p=>{ p.classList.toggle('active',p.id==='tab-'+name); });
   if(name==='weight'&&currentPatientId&&!weightTabChartInstance) loadWeightChart('tab');
+  if(name==='nutrition'&&currentPatientId) loadNutritionFull(document.getElementById('nutritionPeriod')?document.getElementById('nutritionPeriod').value:'30');
 }
 
 function weightChartZoom(delta){ if(weightChartInstance&&typeof weightChartInstance.zoom==='function') weightChartInstance.zoom(delta>0?1.25:0.8); }
@@ -924,6 +1019,167 @@ async function loadInjections(){
   } catch(e){ document.getElementById('injectionHistoryList').innerHTML='<div class="placeholder-tab">Could not load</div>'; }
 }
 
+async function loadSymptoms(){
+  if(!currentPatientId) return;
+  const el=document.getElementById('symptomsHistoryList');
+  if(!el) return;
+  el.innerHTML='<div class="placeholder-tab"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/symptoms`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const stats=d&&d.statistics?d.statistics:{};
+    const list=d&&d.history?d.history:(Array.isArray(d)?d:[])||[];
+    document.getElementById('sympSeverity').textContent=stats.current_severity_ru||stats.current_severity||'—';
+    document.getElementById('sympTotal').textContent=stats.total_reports!=null?stats.total_reports:'—';
+    document.getElementById('sympSevere').textContent=stats.severe_episodes!=null?stats.severe_episodes:'—';
+    if(!list.length){ el.innerHTML='<div class="placeholder-tab">No symptom reports</div>'; return; }
+    el.innerHTML=list.slice(0,50).map(s=>{
+      const name=(s.symptom_name||s.name||'—').toString();
+      const date=s.date?(new Date(s.date).toLocaleDateString('en-GB')):'—';
+      const intensity=(s.intensity_ru||s.intensity||'—').toString();
+      const notes=s.notes?'<br><small>'+String(s.notes).replace(/</g,'&lt;')+'</small>':'';
+      return `<div class="history-item"><strong>${name}</strong> — ${date}<br><span class="nut-tag nut-tag-warn">${intensity}</span>${notes}</div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="placeholder-tab">Could not load</div>'; }
+}
+
+async function loadAnalyses(){
+  if(!currentPatientId) return;
+  const el=document.getElementById('analysesHistoryList');
+  if(!el) return;
+  el.innerHTML='<div class="placeholder-tab"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/analyses`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const list=d&&d.analyses?d.analyses:(Array.isArray(d)?d:[])||[];
+    const total=list.length;
+    const completed=list.filter(a=>a.completed).length;
+    const pending=total-completed;
+    const abnormal=list.filter(a=>a.has_abnormalities).length;
+    document.getElementById('analysesTotal').textContent=total;
+    document.getElementById('analysesPending').textContent=pending;
+    document.getElementById('analysesAbnormal').textContent=abnormal;
+    if(!list.length){ el.innerHTML='<div class="placeholder-tab">No analyses</div>'; return; }
+    el.innerHTML=list.map(a=>{
+      const name=(a.name||'Analysis').toString();
+      const date=a.completed_at||a.due_date?(new Date(a.completed_at||a.due_date).toLocaleDateString('en-GB')):'—';
+      const status=a.completed?(a.has_abnormalities?'<span class="nut-tag nut-tag-warn">Abnormal</span>':'<span class="nut-tag nut-tag-ok">Normal</span>'):'<span class="nut-tag nut-tag-warn">Pending</span>';
+      return `<div class="history-item"><strong>${name}</strong> — ${date} ${status}</div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="placeholder-tab">Could not load</div>'; }
+}
+
+async function loadSupplements(){
+  if(!currentPatientId) return;
+  const listEl=document.getElementById('supplementsList');
+  const histEl=document.getElementById('supplementsHistoryList');
+  if(!listEl) return;
+  listEl.innerHTML='<div class="placeholder-tab"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+  if(histEl) histEl.innerHTML='';
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/supplements`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const stats=d&&d.statistics?d.statistics:{};
+    const list=d&&d.supplements?d.supplements:(Array.isArray(d)?d:[])||[];
+    const history=d&&d.history?d.history:[];
+    document.getElementById('suppActive').textContent=stats.active_count!=null?stats.active_count:list.length;
+    document.getElementById('suppCompliance').textContent=stats.compliance_rate!=null?stats.compliance_rate+'%':'—';
+    document.getElementById('suppMissed').textContent=stats.missed_doses!=null?stats.missed_doses:'—';
+    if(!list.length){ listEl.innerHTML='<div class="placeholder-tab">No supplements prescribed</div>'; }
+    else listEl.innerHTML=list.map(s=>`<div class="history-item"><strong>${(s.name||s.supplement_name||'—').toString()}</strong> — ${(s.dosage||s.dose||'').toString()} ${(s.frequency||'').toString()}</div>`).join('');
+    if(histEl){ if(!history.length) histEl.innerHTML='<div class="placeholder-tab">No intake history</div>'; else histEl.innerHTML=history.slice(0,30).map(h=>`<div class="history-item">${(h.date?new Date(h.date).toLocaleDateString('en-GB'):'—')} — ${(h.supplement_name||h.name||'—').toString()}</div>`).join(''); }
+  } catch(e){ listEl.innerHTML='<div class="placeholder-tab">Could not load</div>'; if(histEl) histEl.innerHTML=''; }
+}
+
+async function loadNotes(){
+  if(!currentPatientId) return;
+  const el=document.getElementById('notesList');
+  if(!el) return;
+  el.innerHTML='<div class="placeholder-tab"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/notes`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const list=d&&d.notes?d.notes:(Array.isArray(d)?d:[])||[];
+    if(!list.length){ el.innerHTML='<div class="placeholder-tab">No notes yet. Click Add note to create one.</div>'; return; }
+    el.innerHTML=list.map(n=>{
+      const date=n.created_at?(new Date(n.created_at).toLocaleDateString('en-GB')):'—';
+      const tags=(n.tags||'').toString();
+      const priv=n.is_private?'Private':'';
+      const content=(n.content||'').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<div class="note-item"><h4>Note #${n.id||''}</h4><div class="note-meta">${date} ${tags?' · '+tags:''} ${priv?' · '+priv:''}</div><div class="note-content">${content}</div></div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="placeholder-tab">Could not load</div>'; }
+}
+
+async function loadAIChat(){
+  if(!currentPatientId) return;
+  const el=document.getElementById('aiChatMessages');
+  if(!el) return;
+  el.innerHTML='<div class="placeholder-tab"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/ai-chat?limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const list=d&&d.messages?d.messages:(Array.isArray(d)?d:[])||[];
+    if(!list.length){ el.innerHTML='<div class="placeholder-tab">No AI chat messages yet.</div>'; return; }
+    el.innerHTML=list.map(m=>{
+      const isUser=m.type==='user';
+      const text=(m.content||'').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const time=m.timestamp?(new Date(m.timestamp).toLocaleString('en-GB')):'';
+      return `<div class="chat-msg ${isUser?'user':'doctor'}"><div><div class="chat-meta">${isUser?'Patient':'AI'} ${time}</div><div class="chat-bubble">${text}</div></div></div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="placeholder-tab">Could not load</div>'; }
+}
+
+async function loadDoctorChat(){
+  if(!currentPatientId) return;
+  const el=document.getElementById('doctorChatMessages');
+  if(!el) return;
+  el.innerHTML='<div class="placeholder-tab"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/doctor-chat?limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const list=d&&d.messages?d.messages:(Array.isArray(d)?d:[])||[];
+    if(!list.length){ el.innerHTML='<div class="placeholder-tab">No messages with doctor yet.</div>'; return; }
+    el.innerHTML=list.map(m=>{
+      const isDoctor=(m.type==='doctor'||m.sender==='doctor');
+      const text=(m.content||m.body||'').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const time=m.timestamp||m.created_at?(new Date(m.timestamp||m.created_at).toLocaleString('en-GB')):'';
+      return `<div class="chat-msg ${isDoctor?'doctor':'user'}"><div><div class="chat-meta">${isDoctor?'Doctor':'Patient'} ${time}</div><div class="chat-bubble">${text}</div></div></div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="placeholder-tab">Could not load</div>'; }
+}
+
+function fillDoctorTemplate(v){ if(v) document.getElementById('doctorChatInput').value=v; }
+function sendAIChatMessage(){
+  const inp=document.getElementById('aiChatInput');
+  const text=inp&&inp.value?inp.value.trim():'';
+  if(!text||!currentPatientId) return;
+  inp.value='';
+  const el=document.getElementById('aiChatMessages');
+  const time=new Date().toLocaleString('en-GB');
+  el.insertAdjacentHTML('beforeend',`<div class="chat-msg user"><div><div class="chat-meta">You ${time}</div><div class="chat-bubble">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div></div>`);
+  fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/ai-chat`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({message:text})}).then(r=>r.json()).then(d=>{
+    const reply=(d.reply||d.message||d.content||'No response.').toString().replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    el.insertAdjacentHTML('beforeend',`<div class="chat-msg doctor"><div><div class="chat-meta">AI ${time}</div><div class="chat-bubble">${reply}</div></div></div>`);
+  }).catch(()=>{});
+}
+function sendDoctorChatMessage(){
+  const inp=document.getElementById('doctorChatInput');
+  const text=inp&&inp.value?inp.value.trim():'';
+  if(!text||!currentPatientId) return;
+  inp.value='';
+  const el=document.getElementById('doctorChatMessages');
+  const time=new Date().toLocaleString('en-GB');
+  el.insertAdjacentHTML('beforeend',`<div class="chat-msg doctor"><div><div class="chat-meta">Doctor ${time}</div><div class="chat-bubble">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div></div>`);
+  fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/doctor-chat`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({message:text})}).then(()=>{}).catch(()=>{});
+}
+function openAddNoteModal(){
+  const content=prompt('Note content:');
+  if(content===null||content.trim()==='') return;
+  if(!currentPatientId) return;
+  fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/notes`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},body:JSON.stringify({content:content.trim()})}).then(r=>{ if(r.ok) loadNotes(); }).catch(()=>{});
+}
+
 async function loadNutritionFull(period){
   period=period||'30';
   const el=document.getElementById('nutritionDiaryFull');
@@ -953,21 +1209,35 @@ async function loadNutritionFull(period){
       return;
     }
     const sorted=history.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,30);
-    el.innerHTML=`
-      <div class="nutrition-diary-header">
-        <span>Date</span><span>Calories</span><span>Protein</span>
-      </div>
-      ${sorted.map(day=>{
-        const dateStr=day.date?(new Date(day.date+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})):'—';
-        const cal=day.total_calories!=null?day.total_calories:day.calories!=null?day.calories:null;
-        const pro=day.total_protein!=null?day.total_protein:day.protein!=null?day.protein:null;
-        const dayGoalCal=day.calories_goal||goalCal;
-        const dayGoalPro=day.protein_goal||goalPro;
-        const cPct=dayGoalCal&&cal!=null?Math.round((cal/dayGoalCal)*100):(day.calories_percent!=null?Math.round(day.calories_percent):null);
-        const pPct=dayGoalPro&&pro!=null?Math.round((pro/dayGoalPro)*100):(day.protein_percent!=null?Math.round(day.protein_percent):null);
-        const mealsTip=day.meals&&day.meals.length?` (${day.meals.length} meals)`:'';
-        return `<div class="nutrition-day"><span class="nd-date">${dateStr}</span><span class="${cPct>=90?'nd-ok':cPct>=70?'nd-cal':''}">${cPct!=null?cPct+'%':cal!=null?cal+' kcal':'—'}${mealsTip}</span><span class="${pPct>=90?'nd-ok':pPct>=70?'nd-pro':''}">${pPct!=null?pPct+'%':pro!=null?pro+' g':'—'}</span></div>`;
-      }).join('')}`;
+    function esc(s){ if(s==null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    el.innerHTML=sorted.map(day=>{
+      const dateStr=day.date?(new Date(day.date+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})):'—';
+      const cal=day.total_calories!=null?day.total_calories:day.calories!=null?day.calories:null;
+      const pro=day.total_protein!=null?day.total_protein:day.protein!=null?day.protein:null;
+      const dayGoalCal=day.calories_goal||goalCal;
+      const dayGoalPro=day.protein_goal||goalPro;
+      const cPct=dayGoalCal&&cal!=null?Math.round((cal/dayGoalCal)*100):(day.calories_percent!=null?Math.round(day.calories_percent):null);
+      const pPct=dayGoalPro&&pro!=null?Math.round((pro/dayGoalPro)*100):(day.protein_percent!=null?Math.round(day.protein_percent):null);
+      const calStatus=cPct!=null&&cPct<80?'Below norm':cPct!=null&&cPct>110?'Above norm':'On target';
+      const calStatusClass=cPct!=null&&cPct<80?'nut-tag-warn':cPct!=null&&cPct>110?'nut-tag-high':'nut-tag-ok';
+      const proStatus=pPct!=null&&pPct>=80?'Good':'Below norm';
+      const proStatusClass=pPct!=null&&pPct>=80?'nut-tag-ok':'nut-tag-warn';
+      const calColor=cPct>=90?'nd-ok':cPct>=70?'nd-cal':'nd-pro';
+      const proColor=pPct>=90?'nd-ok':pPct>=70?'nd-pro':'nd-cal';
+      let mealsHtml='No meal data';
+      if(day.meals&&day.meals.length){ mealsHtml=day.meals.map(m=>{ const t=m.time||''; const n=m.name||'Meal'; const k=m.calories!=null?' ('+Math.round(m.calories)+' kcal)':''; return (t?t+' — ':'')+esc(n)+k; }).join('<br>'); }
+      else if(day.meals_count>0) mealsHtml=day.meals_count+' meal(s) (details not available)';
+      const notesText=day.notes?esc(day.notes):'No notes';
+      return `<div class="nutrition-day-detail">
+        <div class="nut-day-head"><h4>${dateStr}</h4><span class="nut-tag ${calStatusClass}">${calStatus}</span><span class="nut-tag ${proStatusClass}">${proStatus}</span></div>
+        <div class="nut-day-metrics">
+          <div><div class="nut-num">${cal!=null?Math.round(cal):'—'}</div><div class="nut-unit-sm">kcal</div><div class="nut-pct ${calColor}">${cPct!=null?cPct+'% of norm':''}</div></div>
+          <div><div class="nut-num">${pro!=null?Math.round(pro):'—'}</div><div class="nut-unit-sm">g protein</div><div class="nut-pct ${proColor}">${pPct!=null?pPct+'% of norm':''}</div></div>
+        </div>
+        <div class="nut-day-meals"><strong>Meals:</strong><p>${mealsHtml}</p></div>
+        <div class="nut-day-notes"><strong>Notes:</strong><p>${notesText}</p></div>
+      </div>`;
+    }).join('');
   } catch(e){
     el.innerHTML='<div class="nutrition-diary-empty">Error loading nutrition. Try another period.</div>';
     if(nutAvgCalEl) nutAvgCalEl.textContent='—';
