@@ -474,6 +474,8 @@ const PER = 12;
 const COLORS = ['linear-gradient(135deg,#0d9488,#0ea5e9)','linear-gradient(135deg,#7c3aed,#0d9488)','linear-gradient(135deg,#db2777,#9333ea)','linear-gradient(135deg,#0891b2,#0d9488)','linear-gradient(135deg,#1d4ed8,#7c3aed)','linear-gradient(135deg,#16a34a,#0d9488)','linear-gradient(135deg,#ea580c,#dc2626)','linear-gradient(135deg,#be185d,#9333ea)'];
 
 let all=[], filt=[], page=1, token=null;
+const translationCache=new Map();
+const HAS_CYRILLIC=/[а-яА-ЯёЁ]/;
 
 function toEn(s){
   if(s==null||s===undefined||typeof s!=='string') return s;
@@ -495,6 +497,38 @@ function toEn(s){
   const lower=out.toLowerCase();
   const entries=Object.entries(map).filter(([ru])=>ru.length>1).sort((a,b)=>b[0].length-a[0].length);
   entries.forEach(([ru,en])=>{ if(lower.includes(ru.toLowerCase())) out=out.replace(new RegExp(ru.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),en); });
+  return out;
+}
+
+async function translateText(text){
+  if(!text||typeof text!=='string') return text;
+  const t=text.trim();
+  if(!t||!HAS_CYRILLIC.test(t)) return t;
+  if(translationCache.has(t)) return translationCache.get(t);
+  try {
+    if(API&&token){
+      const r=await fetch(`${API}/api/v1/translate`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({text:t,source:'ru',target:'en'})});
+      if(r.ok){ const d=await r.json(); const out=(d.translated||d.text||d.translation||t).trim(); if(out){ translationCache.set(t,out); return out; } } }
+  } catch(e){}
+  try {
+    const r=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(t)}&langpair=ru|en`);
+    const d=await r.json();
+    const out=(d.responseData&&d.responseData.translatedText) ? d.responseData.translatedText.trim() : '';
+    if(out&&out!==t){ translationCache.set(t,out); return out; }
+  } catch(e){}
+  const fallback=toEn(t);
+  translationCache.set(t,fallback);
+  return fallback;
+}
+
+async function translateBatch(texts){
+  const unique=[...new Set(texts)].filter(Boolean);
+  const out=new Map();
+  const BATCH=5;
+  for(let i=0;i<unique.length;i+=BATCH){
+    const chunk=unique.slice(i,i+BATCH);
+    await Promise.all(chunk.map(async(str)=>{ out.set(str,await translateText(str)); }));
+  }
   return out;
 }
 
@@ -1063,11 +1097,15 @@ async function loadSymptoms(){
     document.getElementById('sympTotal').textContent=stats.total_reports!=null?stats.total_reports:'—';
     document.getElementById('sympSevere').textContent=stats.severe_episodes!=null?stats.severe_episodes:'—';
     if(!list.length){ el.innerHTML='<div class="placeholder-tab">No symptom reports</div>'; return; }
+    const toTr=[];
+    list.slice(0,50).forEach(s=>{ toTr.push((s.symptom_name||s.name||'').toString()); toTr.push((s.intensity_ru||s.intensity||'').toString()); if(s.notes) toTr.push(s.notes.toString()); });
+    const trMap=await translateBatch(toTr);
+    const tr=(x)=>x?trMap.get(String(x).trim())||toEn(x):'—';
     el.innerHTML=list.slice(0,50).map(s=>{
-      const name=toEn((s.symptom_name||s.name||'—').toString());
+      const name=tr((s.symptom_name||s.name||'—').toString());
       const date=s.date?(new Date(s.date).toLocaleDateString('en-GB')):'—';
-      const intensity=toEn((s.intensity_ru||s.intensity||'—').toString());
-      const notes=s.notes?'<br><small>'+String(toEn(s.notes)).replace(/</g,'&lt;')+'</small>':'';
+      const intensity=tr((s.intensity_ru||s.intensity||'—').toString());
+      const notes=s.notes?'<br><small>'+String(tr(s.notes)).replace(/</g,'&lt;')+'</small>':'';
       return `<div class="history-item"><strong>${name}</strong> — ${date}<br><span class="nut-tag nut-tag-warn">${intensity}</span>${notes}</div>`;
     }).join('');
   } catch(e){ el.innerHTML='<div class="placeholder-tab">Could not load</div>'; }
@@ -1131,11 +1169,14 @@ async function loadNotes(){
     const d=await r.json().catch(()=>null);
     const list=d&&d.notes?d.notes:(Array.isArray(d)?d:[])||[];
     if(!list.length){ el.innerHTML='<div class="placeholder-tab">No notes yet. Click Add note to create one.</div>'; return; }
+    const toTr=list.map(n=>(n.content||'').toString().trim()).filter(Boolean);
+    const trMap=await translateBatch(toTr);
+    const tr=(x)=>x?trMap.get(String(x).trim())||toEn(x):'';
     el.innerHTML=list.map(n=>{
       const date=n.created_at?(new Date(n.created_at).toLocaleDateString('en-GB')):'—';
       const tags=(n.tags||'').toString();
       const priv=n.is_private?'Private':'';
-      const content=toEn((n.content||'').toString()).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const content=tr((n.content||'').toString()).replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return `<div class="note-item"><h4>Note #${n.id||''}</h4><div class="note-meta">${date} ${tags?' · '+tags:''} ${priv?' · '+priv:''}</div><div class="note-content">${content}</div></div>`;
     }).join('');
   } catch(e){ el.innerHTML='<div class="placeholder-tab">Could not load</div>'; }
@@ -1239,6 +1280,14 @@ async function loadNutritionFull(period){
       return;
     }
     const sorted=history.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,30);
+    const toTranslate=[];
+    sorted.forEach(day=>{
+      if(day.meals&&day.meals.length) day.meals.forEach(m=>{ const n=(m.name||'').toString(); if(n) toTranslate.push(n); });
+      if(day.notes&&String(day.notes).trim()) toTranslate.push(day.notes.toString().trim());
+    });
+    if(toTranslate.length) el.innerHTML='<div class="nutrition-diary-loading"><i class="fas fa-spinner fa-spin"></i> Translating to English…</div>';
+    const trMap=await translateBatch(toTranslate);
+    function tr(s){ if(!s) return s; const t=String(s).trim(); return trMap.get(t)||toEn(t); }
     function esc(s){ if(s==null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     el.innerHTML=sorted.map(day=>{
       const dateStr=day.date?(new Date(day.date+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})):'—';
@@ -1255,9 +1304,9 @@ async function loadNutritionFull(period){
       const calColor=cPct>=90?'nd-ok':cPct>=70?'nd-cal':'nd-pro';
       const proColor=pPct>=90?'nd-ok':pPct>=70?'nd-pro':'nd-cal';
       let mealsHtml='No meal data';
-      if(day.meals&&day.meals.length){ mealsHtml=day.meals.map(m=>{ const t=m.time||''; const n=toEn((m.name||'Meal').toString()); const k=m.calories!=null?' ('+Math.round(m.calories)+' kcal)':''; return (t?t+' — ':'')+esc(n)+k; }).join('<br>'); }
+      if(day.meals&&day.meals.length){ mealsHtml=day.meals.map(m=>{ const time=m.time||''; const n=tr((m.name||'Meal').toString()); const k=m.calories!=null?' ('+Math.round(m.calories)+' kcal)':''; return (time?time+' — ':'')+esc(n)+k; }).join('<br>'); }
       else if(day.meals_count>0) mealsHtml=day.meals_count+' meal(s) (details not available)';
-      const notesText=day.notes?esc(toEn(day.notes.toString())):'No notes';
+      const notesText=day.notes?esc(tr(day.notes.toString())):'No notes';
       return `<div class="nutrition-day-detail">
         <div class="nut-day-head"><h4>${dateStr}</h4><span class="nut-tag ${calStatusClass}">${calStatus}</span><span class="nut-tag ${proStatusClass}">${proStatus}</span></div>
         <div class="nut-day-metrics">
