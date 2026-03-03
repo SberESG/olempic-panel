@@ -194,6 +194,10 @@ main{max-width:1400px;margin:0 auto;padding:24px}
 .inj-list{display:flex;flex-direction:column;gap:0}
 .inj-item{padding:12px 0;border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;font-size:13px}
 .inj-item:last-child{border-bottom:none}
+.nutrition-period-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.nutrition-period-row label{font-size:13px;color:var(--m)}
+.nutrition-period-row select{height:36px;padding:0 12px;border:1px solid var(--b);border-radius:8px;font-size:13px}
+.nutrition-diary-header{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:10px 0;border-bottom:2px solid var(--b);font-size:11px;font-weight:700;color:var(--m);text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -336,6 +340,15 @@ main{max-width:1400px;margin:0 auto;padding:24px}
           <div class="nutrition-cards">
             <div class="nutrition-card"><h4>Average calories</h4><span id="nutAvgCal">—</span><span class="nut-unit">kcal/day</span></div>
             <div class="nutrition-card"><h4>Average protein</h4><span id="nutAvgPro">—</span><span class="nut-unit">g/day</span></div>
+          </div>
+          <div class="nutrition-period-row">
+            <label>Period:</label>
+            <select id="nutritionPeriod" onchange="loadNutritionFull(this.value)">
+              <option value="7">7 days</option>
+              <option value="30" selected>30 days</option>
+              <option value="90">90 days</option>
+              <option value="all">All</option>
+            </select>
           </div>
           <div class="nutrition-diary-full" id="nutritionDiaryFull"><div class="nutrition-diary-loading">Loading…</div></div>
         </div>
@@ -909,29 +922,39 @@ async function loadInjections(){
   } catch(e){ document.getElementById('injectionHistoryList').innerHTML='<div class="placeholder-tab">Could not load</div>'; }
 }
 
-async function loadNutritionFull(){
+async function loadNutritionFull(period){
+  period=period||'30';
   const el=document.getElementById('nutritionDiaryFull');
   if(!el||!currentPatientId) return;
+  el.innerHTML='<div class="nutrition-diary-loading"><i class="fas fa-spinner fa-spin"></i> Loading nutrition…</div>';
   try {
-    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/nutrition?period=30`,{headers:{'Authorization':`Bearer ${token}`}});
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/nutrition?period=${period}`,{headers:{'Authorization':`Bearer ${token}`}});
     const data=await r.json().catch(()=>null);
+    if(!r.ok){ el.innerHTML='<div class="nutrition-diary-empty">Could not load</div>'; return; }
     const stats=data&&data.statistics?data.statistics:{};
     const history=data&&data.history?data.history:(Array.isArray(data)?data:[]);
     document.getElementById('nutAvgCal').textContent=stats.average_calories!=null?Math.round(stats.average_calories):'—';
     document.getElementById('nutAvgPro').textContent=stats.average_protein!=null?Math.round(stats.average_protein):'—';
-    if(!history.length){ el.innerHTML='<div class="nutrition-diary-empty">No nutrition entries</div>'; return; }
-    const sorted=history.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,14);
-    const goalCal=stats.calories_goal||(currentPatient&&currentPatient.daily_calories_goal)||0;
-    const goalPro=stats.protein_goal||(currentPatient&&currentPatient.daily_protein_goal)||0;
-    el.innerHTML=sorted.map(day=>{
-      const d=new Date(day.date);
-      const dateStr=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-      const cal=day.total_calories!=null?Math.round(day.total_calories):null;
-      const pro=day.total_protein!=null?Math.round(day.total_protein):null;
-      const cPct=goalCal&&cal!=null?Math.round((cal/goalCal)*100):null;
-      const pPct=goalPro&&pro!=null?Math.round((pro/goalPro)*100):null;
-      return `<div class="nutrition-day"><span class="nd-date">${dateStr}</span><span class="${cPct>=90?'nd-ok':cPct>=70?'nd-cal':''}">${cPct!=null?cPct+'%':cal!=null?cal+' kcal':'—'}</span><span class="${pPct>=90?'nd-ok':pPct>=70?'nd-pro':''}">${pPct!=null?pPct+'%':pro!=null?pro+' g':'—'}</span></div>`;
-    }).join('');
+    const goalCal=stats.average_calories_goal||stats.calories_goal||(currentPatient&&currentPatient.daily_calories_goal)||0;
+    const goalPro=stats.average_protein_goal||stats.protein_goal||(currentPatient&&currentPatient.daily_protein_goal)||0;
+    if(!history.length){ el.innerHTML='<div class="nutrition-diary-empty">No nutrition entries for this period</div>'; return; }
+    const sorted=history.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,30);
+    el.innerHTML=`
+      <div class="nutrition-diary-header">
+        <span>Date</span><span>Calories</span><span>Protein</span>
+      </div>
+      ${sorted.map(day=>{
+        const dateStr=day.date?(new Date(day.date+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})):'—';
+        const cal=day.total_calories!=null?day.total_calories:null;
+        const pro=day.total_protein!=null?day.total_protein:null;
+        const dayGoalCal=day.calories_goal||goalCal;
+        const dayGoalPro=day.protein_goal||goalPro;
+        const cPct=dayGoalCal&&cal!=null?Math.round((cal/dayGoalCal)*100):(day.calories_percent!=null?Math.round(day.calories_percent):null);
+        const pPct=dayGoalPro&&pro!=null?Math.round((pro/dayGoalPro)*100):(day.protein_percent!=null?Math.round(day.protein_percent):null);
+        const mealsCount=day.meals_count!=null?day.meals_count:'';
+        const mealsTip=day.meals&&day.meals.length?` (${day.meals.length} meals)`:'';
+        return `<div class="nutrition-day"><span class="nd-date">${dateStr}</span><span class="${cPct>=90?'nd-ok':cPct>=70?'nd-cal':''}">${cPct!=null?cPct+'%':cal!=null?cal+' kcal':'—'}${mealsTip}</span><span class="${pPct>=90?'nd-ok':pPct>=70?'nd-pro':''}">${pPct!=null?pPct+'%':pro!=null?pro+' g':'—'}</span></div>`;
+      }).join('')}`;
   } catch(e){ el.innerHTML='<div class="nutrition-diary-empty">Could not load</div>'; }
 }
 
