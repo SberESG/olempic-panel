@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olempic Health — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--t:#0d9488;--td:#0f766e;--tl:#f0fdf9;--s:#0f172a;--s2:#1e293b;--m:#64748b;--b:#e2e8f0;--bg:#f8fafc;--g:#22c55e;--a:#f59e0b;--r:#ef4444}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--s)}
+
+#ov{position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:100}
+#ov.hide{display:none}
+.spin{width:40px;height:40px;border:3px solid var(--b);border-top-color:var(--t);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-txt{font-size:14px;color:var(--m)}
+
+header{background:#fff;border-bottom:1px solid var(--b);position:sticky;top:0;z-index:10}
+.hdr{max-width:1400px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.lm{width:32px;height:32px;background:var(--t);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+.ln{font-size:15px;font-weight:600}
+.hn{font-size:13px;color:var(--m)}
+.hn strong{color:var(--s2)}
+
+main{max-width:1400px;margin:0 auto;padding:24px}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat{background:#fff;border:1px solid var(--b);border-radius:12px;padding:18px 20px}
+.stat-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;margin-bottom:10px}
+.ic-t{background:#f0fdf9;color:var(--t)}.ic-g{background:#f0fdf4;color:var(--g)}.ic-a{background:#fffbeb;color:var(--a)}.ic-r{background:#fef2f2;color:var(--r)}
+.stat-val{font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;color:var(--s)}
+.stat-lbl{font-size:12px;color:var(--m);margin-top:4px}
+
+.filters{background:#fff;border:1px solid var(--b);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap}
+.fg{display:flex;flex-direction:column;gap:4px;flex:1;min-width:140px}
+.fl{font-size:10px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:.6px}
+.fi,.fs{height:36px;border:1.5px solid var(--b);border-radius:8px;padding:0 10px;font-size:13px;font-family:inherit;color:var(--s);background:var(--bg);outline:none;width:100%}
+.fi:focus,.fs:focus{border-color:var(--t)}
+
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.st{font-size:16px;font-weight:600}
+.sc{font-size:13px;color:var(--m)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+
+.card{background:#fff;border:1px solid var(--b);border-radius:12px;overflow:hidden;transition:box-shadow .15s,transform .15s;cursor:pointer}
+.card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08);transform:translateY(-1px)}
+.card-head{padding:16px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--b)}
+.av{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
+.pname{font-size:14px;font-weight:600;color:var(--s);line-height:1.2}
+.pmeta{font-size:12px;color:var(--m);margin-top:2px}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;margin-left:auto;flex-shrink:0}
+.bg{background:#dcfce7;color:#166534}.ba{background:#fef3c7;color:#92400e}.br{background:#fecaca;color:#991b1b}.bx{background:#f1f5f9;color:#475569}
+
+.card-body{padding:14px 18px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.field{background:var(--bg);border-radius:7px;padding:8px 10px}
+.fl2{font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+.fv{font-size:13px;font-weight:600;color:var(--s)}
+.fv.ok{color:var(--g)}.fv.warn{color:var(--a)}.fv.bad{color:var(--r)}
+
+.card-foot{padding:10px 18px;border-top:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.email{font-size:11px;color:var(--m);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.phone{font-size:11px;color:var(--m)}
+
+.empty{text-align:center;padding:60px;color:var(--m);grid-column:1/-1}
+.empty i{font-size:36px;opacity:.2;margin-bottom:10px;display:block}
+
+.pag{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:20px}
+.pb{border:1.5px solid var(--b);background:#fff;border-radius:8px;padding:6px 14px;font-size:13px;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s}
+.pb:hover:not(:disabled){border-color:var(--t);color:var(--t)}
+.pb:disabled{opacity:.35;cursor:not-allowed}
+.pi{font-size:13px;color:var(--m)}
+
+/* Modal — patient indicators (ozzy-style) */
+#modal{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:50;display:none;align-items:center;justify-content:center;padding:24px}
+#modal.show{display:flex}
+.modal-box{background:#fff;border-radius:16px;max-width:640px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 25px 50px -12px rgba(0,0,0,.25)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--b)}
+.modal-title{font-size:18px;font-weight:600;color:var(--s)}
+.modal-close{width:36px;height:36px;border:none;background:var(--bg);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--m);transition:all .15s}
+.modal-close:hover{background:var(--b);color:var(--s)}
+.modal-body{padding:24px}
+.modal-avatar{width:56px;height:56px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px;margin-bottom:16px}
+/* Key metrics row (4 cards) */
+.metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:var(--bg);border-radius:12px;padding:14px 16px;border:1px solid var(--b)}
+.metric-card h4{font-size:10px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.metric-card .metric-val{font-size:20px;font-weight:700;letter-spacing:-.5px;line-height:1.2}
+.metric-card .metric-sub{font-size:11px;color:var(--m);margin-top:2px}
+.metric-card.weight-loss .metric-val{color:var(--g)}
+.metric-card.trend-improving .metric-val{color:var(--g)}.metric-card.trend-stable .metric-val{color:var(--a)}.metric-card.trend-decline .metric-val{color:var(--r)}
+.metric-card.side-none .metric-val{color:var(--g)}.metric-card.side-mild .metric-val{color:var(--a)}.metric-card.side-severe .metric-val{color:var(--r)}
+/* Recent activity */
+.recent-section{background:var(--bg);border-radius:12px;padding:16px 18px;margin-bottom:20px;border:1px solid var(--b)}
+.recent-section h4{font-size:12px;font-weight:700;color:var(--s2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.4px}
+.recent-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--b);font-size:13px}
+.recent-row:last-child{border-bottom:none}
+.recent-row span:first-child{color:var(--m)}.recent-row span:last-child{font-weight:600;color:var(--s)}
+/* Details grid */
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.modal-field{background:var(--bg);border-radius:8px;padding:12px 14px;border:1px solid transparent}
+.modal-field.full{grid-column:1/-1}
+.modal-label{font-size:10px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.modal-val{font-size:14px;font-weight:600;color:var(--s)}
+.modal-val.warn{color:var(--a)}.modal-val.bad{color:var(--r)}.modal-val.ok{color:var(--g)}
+@media (max-width:560px){.metrics-row{grid-template-columns:1fr 1fr}}
+/* Nutrition diary */
+.nutrition-section{background:var(--bg);border-radius:12px;padding:16px 18px;margin-bottom:20px;border:1px solid var(--b)}
+.nutrition-section h4{font-size:12px;font-weight:700;color:var(--s2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px}
+.nutrition-section h4 i{color:var(--t)}
+.nutrition-goals{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.nutrition-goal{background:#fff;border-radius:8px;padding:10px 12px;border:1px solid var(--b);display:flex;align-items:center;gap:10px}
+.nutrition-goal i{font-size:16px;opacity:.8}
+.nutrition-goal .nug-lbl{font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.4px}
+.nutrition-goal .nug-val{font-size:15px;font-weight:700;color:var(--s)}
+.nutrition-diary-entries{max-height:200px;overflow-y:auto}
+.nutrition-day{border-bottom:1px solid var(--b);padding:10px 0;font-size:12px;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+.nutrition-day:last-child{border-bottom:none}
+.nutrition-day .nd-date{font-weight:600;color:var(--s)}
+.nutrition-day .nd-cal{color:var(--a)}
+.nutrition-day .nd-pro{color:var(--r)}
+.nutrition-day .nd-ok{color:var(--g)}
+.nutrition-diary-loading,.nutrition-diary-empty{text-align:center;padding:16px;font-size:13px;color:var(--m)}
+
+/* Full profile view */
+.profile-back{margin-bottom:16px}
+.back-btn{background:0;border:0;color:var(--t);font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:4px 0}
+.back-btn:hover{color:var(--td)}
+.profile-header{background:#fff;border:1px solid var(--b);border-radius:12px;padding:20px 24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px}
+.profile-header-info{flex:1;min-width:0}
+.profile-header h2{font-size:22px;font-weight:700;color:var(--s);margin:0 0 6px 0}
+.profile-meta{font-size:14px;color:var(--m);margin:0 0 4px 0}
+.profile-weight{font-size:13px;color:var(--s2);margin:0}
+.profile-therapy-days{font-size:18px;font-weight:700;color:var(--t)}
+.profile-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.profile-metrics .metric-card{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:20px}
+.profile-metrics .metric-card h4{font-size:11px;margin-bottom:8px}
+.profile-metrics .metric-val{font-size:26px;font-weight:700;line-height:1.2}
+.profile-metrics .weight-loss .metric-val{color:var(--g)}
+.profile-metrics .adherence-card .metric-val{color:#2563eb}
+.profile-metrics .metric-sub{font-size:12px;color:var(--m);margin-top:4px}
+@media (max-width:700px){.profile-metrics{grid-template-columns:1fr 1fr}}
+.profile-tabs-wrap{background:#fff;border:1px solid var(--b);border-radius:12px;overflow:hidden}
+.profile-tabs{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--b);padding:0 12px;overflow-x:auto}
+.profile-tab{border:none;background:0;padding:14px 16px;font-size:13px;font-weight:600;color:var(--m);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.profile-tab:hover{color:var(--s)}
+.profile-tab.active{color:var(--t);border-bottom-color:var(--t)}
+.profile-tab-panels{padding:24px}
+.profile-tab-panel{display:none}
+.profile-tab-panel.active{display:block}
+.overview-grid{display:grid;grid-template-columns:280px 1fr;gap:24px;margin-bottom:24px}
+@media (max-width:800px){.overview-grid{grid-template-columns:1fr}}
+.overview-sidebar{background:#fff;border-radius:12px;padding:24px;border:1px solid var(--b);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.overview-sidebar h3,.overview-chart h3,.recent-activity-block h3,.data-table-wrap h3{font-size:15px;font-weight:700;color:var(--s2);margin:0 0 16px 0}
+.info-rows{display:flex;flex-direction:column;gap:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.info-row span:first-child{color:var(--m)}.info-row span:last-child{font-weight:600;color:var(--s)}
+.overview-chart{background:#fff;border-radius:12px;padding:24px;border:1px solid var(--b);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.chart-head h3{font-size:16px;font-weight:700;color:var(--s2);margin:0}
+.chart-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chart-controls label{font-size:13px;color:var(--m);font-weight:500}
+.chart-controls select{height:36px;padding:0 12px;border:1px solid var(--b);border-radius:8px;font-size:13px;background:#fff;color:var(--s)}
+.chart-zoom-btns{display:flex;align-items:center;gap:4px}
+.chart-zoom-btn{width:32px;height:32px;border:1px solid var(--b);background:#fff;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--m);font-size:12px;transition:all .15s}
+.chart-zoom-btn:hover{background:var(--bg);color:var(--t);border-color:var(--t)}
+.chart-container-profile{position:relative;height:300px;width:100%}
+.chart-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px;padding-top:20px;border-top:1px solid var(--b);text-align:center}
+.chart-summary .cs-lbl{display:block;font-size:12px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.chart-summary div span:last-child{font-weight:700;font-size:18px;color:var(--s)}
+.recent-activity-block{background:#fff;border-radius:12px;padding:24px;border:1px solid var(--b);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.recent-activity-block .recent-row{margin-bottom:8px}
+.inj-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.inj-stat{background:var(--bg);border-radius:10px;padding:14px;border:1px solid var(--b);text-align:center}
+.inj-stat h4{font-size:10px;font-weight:700;color:var(--m);text-transform:uppercase;margin:0 0 6px 0}
+.inj-stat span{font-size:20px;font-weight:700;color:var(--s)}
+.data-table-wrap{margin-top:16px}
+.table-scroll{overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th,.data-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--b)}
+.data-table th{font-weight:700;color:var(--m);text-transform:uppercase;font-size:11px}
+.placeholder-tab{padding:20px;color:var(--m);font-size:14px}
+.nutrition-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.nutrition-card{background:var(--bg);border-radius:10px;padding:16px;border:1px solid var(--b)}
+.nutrition-card h4{font-size:11px;font-weight:700;color:var(--m);margin:0 0 6px 0}
+.nutrition-card span:not(.nut-unit){font-size:22px;font-weight:700;color:var(--s)}
+.nut-unit{display:block;font-size:12px;color:var(--m);margin-top:4px}
+.inj-list{display:flex;flex-direction:column;gap:0}
+.inj-item{padding:12px 0;border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.inj-item:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+
+<div id="ov">
+  <div class="spin"></div>
+  <div class="load-txt" id="lt">Connecting…</div>
+</div>
+
+<header>
+  <div class="hdr">
+    <div class="logo">
+      <div class="lm"><i class="fas fa-heartbeat"></i></div>
+      <span class="ln">Olempic Health</span>
+    </div>
+    <span class="hn">Dr. <strong id="dn">—</strong></span>
+  </div>
+</header>
+
+<main>
+  <div id="listView">
+  <div class="stats">
+    <div class="stat"><div class="stat-icon ic-t"><i class="fas fa-users"></i></div><div class="stat-val" id="sT">—</div><div class="stat-lbl">Total patients</div></div>
+    <div class="stat"><div class="stat-icon ic-g"><i class="fas fa-arrow-trend-up"></i></div><div class="stat-val" id="sI">—</div><div class="stat-lbl">Improving</div></div>
+    <div class="stat"><div class="stat-icon ic-a"><i class="fas fa-minus"></i></div><div class="stat-val" id="sP">—</div><div class="stat-lbl">Plateau</div></div>
+    <div class="stat"><div class="stat-icon ic-r"><i class="fas fa-triangle-exclamation"></i></div><div class="stat-val" id="sA">—</div><div class="stat-lbl">Need attention</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="fg" style="flex:2"><div class="fl">Search</div><input class="fi" id="fS" placeholder="Name, email, phone…" oninput="applyF()"></div>
+    <div class="fg"><div class="fl">Progress</div><select class="fs" id="fP" onchange="applyF()"><option value="">All</option><option value="positive">Improving</option><option value="stable">Plateau</option><option value="negative">Declining</option></select></div>
+    <div class="fg"><div class="fl">Medication</div><select class="fs" id="fM" onchange="applyF()"><option value="">All</option></select></div>
+  </div>
+
+  <div class="sh"><div class="st">Patients</div><div class="sc" id="sc"></div></div>
+  <div class="grid" id="grid"></div>
+  <div class="pag" id="pag" style="display:none">
+    <button class="pb" id="pp" onclick="cp(-1)"><i class="fas fa-chevron-left"></i> Prev</button>
+    <span class="pi" id="pi"></span>
+    <button class="pb" id="pn" onclick="cp(1)">Next <i class="fas fa-chevron-right"></i></button>
+  </div>
+  </div>
+
+  <div id="profileView" style="display:none">
+    <div class="profile-back"><button type="button" class="back-btn" onclick="backToList()"><i class="fas fa-arrow-left"></i> Back to dashboard</button></div>
+    <div class="profile-header">
+      <div class="profile-header-info">
+        <h2 id="profilePatientName">—</h2>
+        <p class="profile-meta"><span id="profileAge">—</span> · <span id="profileDrug">—</span> <span id="profileDose">—</span></p>
+        <p class="profile-weight"><span id="profileCurrentWeight">—</span> (Initial <span id="profileInitialWeight">—</span>)</p>
+      </div>
+      <div class="profile-therapy-days"><span id="profileTherapyDays">—</span> days of therapy</div>
+    </div>
+    <div class="profile-metrics">
+      <div class="metric-card weight-loss"><h4>Weight loss</h4><div class="metric-val" id="pmWeightLoss">—</div><div class="metric-sub" id="pmWeightLossPct">—</div></div>
+      <div class="metric-card adherence-card"><h4>Adherence</h4><div class="metric-val" id="pmAdherence">—</div><div class="metric-sub">Last 30 days</div></div>
+      <div class="metric-card" id="pmTrendCard"><h4>Current trend</h4><div class="metric-val" id="pmTrend">—</div><div class="metric-sub">Based on last 14 days</div></div>
+      <div class="metric-card" id="pmSideCard"><h4>Side effects</h4><div class="metric-val" id="pmSide">—</div><div class="metric-sub">Current severity</div></div>
+    </div>
+    <div class="profile-tabs-wrap">
+      <nav class="profile-tabs">
+        <button type="button" class="profile-tab active" data-tab="overview" onclick="switchProfileTab('overview')">Overview</button>
+        <button type="button" class="profile-tab" data-tab="weight" onclick="switchProfileTab('weight')">Weight</button>
+        <button type="button" class="profile-tab" data-tab="injections" onclick="switchProfileTab('injections')">Injections</button>
+        <button type="button" class="profile-tab" data-tab="symptoms" onclick="switchProfileTab('symptoms')">Symptoms</button>
+        <button type="button" class="profile-tab" data-tab="analyses" onclick="switchProfileTab('analyses')">Analyses</button>
+        <button type="button" class="profile-tab" data-tab="nutrition" onclick="switchProfileTab('nutrition')">Nutrition</button>
+        <button type="button" class="profile-tab" data-tab="supplements" onclick="switchProfileTab('supplements')">Supplements</button>
+        <button type="button" class="profile-tab" data-tab="notes" onclick="switchProfileTab('notes')">Notes</button>
+      </nav>
+      <div class="profile-tab-panels">
+        <div id="tab-overview" class="profile-tab-panel active">
+          <div class="overview-grid">
+            <div class="overview-sidebar">
+              <h3>Patient information</h3>
+              <div class="info-rows">
+                <div class="info-row"><span>Email</span><span id="oiEmail">—</span></div>
+                <div class="info-row"><span>Phone</span><span id="oiPhone">—</span></div>
+                <div class="info-row"><span>Height</span><span id="oiHeight">—</span></div>
+                <div class="info-row"><span>Calorie goal</span><span id="oiCalories">—</span></div>
+                <div class="info-row"><span>Protein goal</span><span id="oiProtein">—</span></div>
+                <div class="info-row"><span>Medication</span><span id="oiDrug">—</span></div>
+                <div class="info-row"><span>Current dose</span><span id="oiDose">—</span></div>
+              </div>
+            </div>
+            <div class="overview-chart">
+              <div class="chart-head">
+                <h3>Weight loss progress</h3>
+                <div class="chart-controls">
+                  <label>Period:</label>
+                  <select id="weightChartPeriod" onchange="loadWeightChart()">
+                    <option value="7d">7 days</option>
+                    <option value="30d" selected>30 days</option>
+                    <option value="90d">90 days</option>
+                    <option value="all">All</option>
+                  </select>
+                  <div class="chart-zoom-btns">
+                    <button type="button" class="chart-zoom-btn" onclick="weightChartZoom(1)" title="Zoom in"><i class="fas fa-search-plus"></i></button>
+                    <button type="button" class="chart-zoom-btn" onclick="weightChartZoom(-1)" title="Zoom out"><i class="fas fa-search-minus"></i></button>
+                    <button type="button" class="chart-zoom-btn" onclick="weightChartReset()" title="Reset zoom"><i class="fas fa-expand-arrows-alt"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-container-profile"><canvas id="weightChartCanvas"></canvas></div>
+              <div class="chart-summary">
+                <div><span class="cs-lbl">Initial weight</span><span id="csInitial">—</span></div>
+                <div><span class="cs-lbl">Current weight</span><span id="csCurrent">—</span></div>
+                <div><span class="cs-lbl">Target weight</span><span id="csTarget">—</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="recent-activity-block">
+            <h3>Recent activity</h3>
+            <div class="recent-row"><span>Last injection</span><span id="raLastInj">—</span></div>
+            <div class="recent-row"><span>Last weight check</span><span id="raLastWeight">—</span></div>
+            <div class="recent-row"><span>Last symptom report</span><span id="raLastSymptom">—</span></div>
+          </div>
+        </div>
+        <div id="tab-weight" class="profile-tab-panel">
+          <div class="chart-container-profile" style="margin-bottom:20px"><canvas id="weightTabChartCanvas"></canvas></div>
+          <div class="data-table-wrap">
+            <h3>Weight history</h3>
+            <div class="table-scroll">
+              <table class="data-table"><thead><tr><th>Weight (kg)</th><th>Date</th><th>Notes</th></tr></thead><tbody id="weightHistoryBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+        <div id="tab-injections" class="profile-tab-panel">
+          <div class="inj-stats">
+            <div class="inj-stat"><h4>Total injections</h4><span id="injTotal">—</span></div>
+            <div class="inj-stat"><h4>Adherence</h4><span id="injAdherence">—</span></div>
+            <div class="inj-stat"><h4>Missed doses</h4><span id="injMissed">—</span></div>
+            <div class="inj-stat"><h4>Current dose</h4><span id="injDose">—</span></div>
+          </div>
+          <div class="data-table-wrap"><h3>Injection history</h3><div id="injectionHistoryList" class="inj-list"></div></div>
+        </div>
+        <div id="tab-symptoms" class="profile-tab-panel"><div class="placeholder-tab"><p>Symptoms history and reports.</p></div></div>
+        <div id="tab-analyses" class="profile-tab-panel"><div class="placeholder-tab"><p>Lab analyses and results.</p></div></div>
+        <div id="tab-nutrition" class="profile-tab-panel">
+          <div class="nutrition-cards">
+            <div class="nutrition-card"><h4>Average calories</h4><span id="nutAvgCal">—</span><span class="nut-unit">kcal/day</span></div>
+            <div class="nutrition-card"><h4>Average protein</h4><span id="nutAvgPro">—</span><span class="nut-unit">g/day</span></div>
+          </div>
+          <div class="nutrition-diary-full" id="nutritionDiaryFull"><div class="nutrition-diary-loading">Loading…</div></div>
+        </div>
+        <div id="tab-supplements" class="profile-tab-panel"><div class="placeholder-tab"><p>Supplements and vitamins.</p></div></div>
+        <div id="tab-notes" class="profile-tab-panel"><div class="placeholder-tab"><p>Doctor notes.</p></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="modal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <span class="modal-title" id="modalTitle">Patient</span>
+      <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://52.54.172.121';
+const PER = 12;
+const COLORS = ['linear-gradient(135deg,#0d9488,#0ea5e9)','linear-gradient(135deg,#7c3aed,#0d9488)','linear-gradient(135deg,#db2777,#9333ea)','linear-gradient(135deg,#0891b2,#0d9488)','linear-gradient(135deg,#1d4ed8,#7c3aed)','linear-gradient(135deg,#16a34a,#0d9488)','linear-gradient(135deg,#ea580c,#dc2626)','linear-gradient(135deg,#be185d,#9333ea)'];
+
+let all=[], filt=[], page=1, token=null;
+
+function ini(n){return(n||'').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'?'}
+
+function fmt(v,unit=''){
+  if(v==null||v===''||v===undefined) return '—';
+  const n=parseFloat(String(v));
+  if(isNaN(n)) return String(v);
+  const r=Math.round(n*10)/10;
+  return r+(unit?' '+unit:'');
+}
+
+function fmtChange(v){
+  if(v==null||v===''||v===undefined) return '—';
+  const n=parseFloat(String(v));
+  if(isNaN(n)||Math.abs(n)<0.01) return '0 kg';
+  const r=Math.round(n*10)/10;
+  return (r>0?'+':'')+r+' kg';
+}
+
+function progress(p){
+  if(p==='positive') return '<span class="badge bg"><i class="fas fa-arrow-up"></i> Improving</span>';
+  if(p==='negative') return '<span class="badge br"><i class="fas fa-arrow-down"></i> Declining</span>';
+  if(p==='stable')   return '<span class="badge ba"><i class="fas fa-minus"></i> Plateau</span>';
+  return '<span class="badge bx">—</span>';
+}
+
+function changeClass(v){
+  const n=parseFloat(String(v));
+  if(isNaN(n)||Math.abs(n)<0.01) return '';
+  return n<0?'ok':n>0?'bad':'';
+}
+
+async function load(){
+  document.getElementById('lt').textContent='Authenticating…';
+  const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'petrov@yandex.ru',password:'PetrovDoc1!'})});
+  const ld=await lr.json();
+  token=ld.token.access_token;
+  try{ localStorage.setItem('doctor_token',token); }catch(e){}
+  const doc=ld.doctor||{};
+  document.getElementById('dn').textContent=doc.name||doc.email||'Petrov';
+
+  document.getElementById('lt').textContent='Loading patients…';
+  let pg=1;
+  while(true){
+    const r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json();
+    const pts=Array.isArray(d)?d:(d.patients||d.data||[]);
+    if(!pts||!pts.length) break;
+    all=all.concat(pts);
+    if(all.length>=(d.total||0)||pts.length<50) break;
+    pg++;
+  }
+
+  // Populate medication filter
+  const meds=[...new Set(all.map(p=>p.current_medication||p.drug).filter(Boolean))];
+  const fm=document.getElementById('fM');
+  meds.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;fm.appendChild(o)});
+
+  filt=[...all];
+  updateStats();
+  render();
+  document.getElementById('ov').classList.add('hide');
+}
+
+function updateStats(){
+  document.getElementById('sT').textContent=all.length;
+  document.getElementById('sI').textContent=all.filter(p=>(p.progress_status||p.progress)==='positive').length;
+  document.getElementById('sP').textContent=all.filter(p=>(p.progress_status||p.progress)==='stable').length;
+  document.getElementById('sA').textContent=all.filter(p=>(p.progress_status||p.progress)==='negative').length;
+}
+
+function applyF(){
+  const s=document.getElementById('fS').value.toLowerCase();
+  const pr=document.getElementById('fP').value;
+  const med=document.getElementById('fM').value;
+  filt=all.filter(p=>{
+    const nm=`${p.first_name||''} ${p.last_name||''} ${p.email||''} ${p.phone||''}`.toLowerCase();
+    if(s&&!nm.includes(s)) return false;
+    if(pr&&(p.progress_status||p.progress)!==pr) return false;
+    if(med&&(p.current_medication||p.drug)!==med) return false;
+    return true;
+  });
+  page=1; render();
+}
+
+function render(){
+  const g=document.getElementById('grid');
+  const st=(page-1)*PER;
+  const sl=filt.slice(st,st+PER);
+  document.getElementById('sc').textContent=`Showing ${Math.min(filt.length,st+sl.length)} of ${filt.length}`;
+
+  if(!sl.length){
+    g.innerHTML='<div class="empty"><i class="fas fa-user-slash"></i><p>No patients found</p></div>';
+    document.getElementById('pag').style.display='none';
+    return;
+  }
+
+  g.innerHTML=sl.map((p,i)=>{
+    const col=COLORS[(st+i)%COLORS.length];
+    const name=`${p.first_name||''} ${p.last_name||''}`.trim()||p.name||'Unknown';
+    const drug=p.current_medication||p.drug||'—';
+    const dose=p.current_dose!=null?`${p.current_dose} mg`:(p.dose||'—');
+    const wt=fmt(p.current_weight||p.weight,'kg');
+    const ch=fmtChange(p.weight_change);
+    const chcls=changeClass(p.weight_change);
+    const pr=p.progress_status||p.progress||'';
+    const age=p.age?`Age ${p.age}`:'';
+    const effects=p.side_effects||p.effects||'None';
+    const bmi=fmt(p.bmi);
+    const injDate=p.last_injection_date||p.injection_date||'—';
+    const nextInj=p.next_injection_date||'—';
+    const startWeight=fmt(p.start_weight||p.initial_weight,'kg');
+    const totalLoss=fmtChange(p.total_weight_loss||(p.start_weight&&p.current_weight?p.current_weight-p.start_weight:null));
+    const weeks=p.weeks_on_medication||p.treatment_weeks||'—';
+    const phone=p.phone||'—';
+
+    const idx = st + i;
+    return `<div class="card" data-patient-index="${idx}" onclick="openProfile(${idx})">
+      <div class="card-head">
+        <div class="av" style="background:${col}">${ini(name)}</div>
+        <div style="min-width:0;flex:1">
+          <div class="pname">${name}</div>
+          <div class="pmeta">${[age,drug].filter(x=>x&&x!=='—').join(' · ')}</div>
+        </div>
+        ${progress(pr)}
+      </div>
+      <div class="card-body">
+        <div class="fields">
+          <div class="field"><div class="fl2">Current weight</div><div class="fv">${wt}</div></div>
+          <div class="field"><div class="fl2">Weekly change</div><div class="fv ${chcls}">${ch}</div></div>
+          <div class="field"><div class="fl2">Start weight</div><div class="fv">${startWeight}</div></div>
+          <div class="field"><div class="fl2">Total loss</div><div class="fv ${chcls}">${totalLoss}</div></div>
+          <div class="field"><div class="fl2">Dose</div><div class="fv">${dose}</div></div>
+          <div class="field"><div class="fl2">BMI</div><div class="fv">${bmi}</div></div>
+          <div class="field"><div class="fl2">Weeks on meds</div><div class="fv">${weeks}</div></div>
+          <div class="field"><div class="fl2">Side effects</div><div class="fv ${effects!=='None'?'warn':''}">${effects}</div></div>
+          <div class="field"><div class="fl2">Last injection</div><div class="fv">${injDate}</div></div>
+          <div class="field"><div class="fl2">Next injection</div><div class="fv">${nextInj}</div></div>
+        </div>
+      </div>
+      <div class="card-foot">
+        <span class="email"><i class="fas fa-envelope" style="margin-right:4px;opacity:.4"></i>${p.email||'—'}</span>
+        <span class="phone"><i class="fas fa-phone" style="margin-right:4px;opacity:.4"></i>${phone}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const tp=Math.ceil(filt.length/PER);
+  const pag=document.getElementById('pag');
+  if(tp>1){
+    pag.style.display='flex';
+    document.getElementById('pi').innerHTML=`Page <strong>${page}</strong> / <strong>${tp}</strong>`;
+    document.getElementById('pp').disabled=page===1;
+    document.getElementById('pn').disabled=page===tp;
+  } else pag.style.display='none';
+}
+
+function cp(d){page+=d;render();window.scrollTo({top:0,behavior:'smooth'})}
+
+function trendLabel(pr){
+  if(pr==='positive') return 'Improving';
+  if(pr==='negative') return 'Declining';
+  if(pr==='stable') return 'Plateau';
+  return '—';
+}
+function trendCardClass(pr){
+  if(pr==='positive') return 'trend-improving';
+  if(pr==='stable') return 'trend-stable';
+  if(pr==='negative') return 'trend-decline';
+  return '';
+}
+function sideEffectsSeverity(eff){
+  const s=(eff||'').toLowerCase();
+  if(!s||s==='none'||s==='—') return { label:'None', cls:'side-none' };
+  if(s.includes('severe')||s.includes('heavy')||s.includes('strong')) return { label:'Severe', cls:'side-severe' };
+  if(s.includes('moderate')||s.includes('medium')) return { label:'Moderate', cls:'side-mild' };
+  return { label:'Mild', cls:'side-mild' };
+}
+
+function openModal(idx){
+  const p=filt[idx];
+  if(!p) return;
+  const name=`${p.first_name||''} ${p.last_name||''}`.trim()||p.name||'Unknown';
+  const col=COLORS[idx%COLORS.length];
+  const drug=p.current_medication||p.drug||'—';
+  const dose=p.current_dose!=null?`${p.current_dose} mg`:(p.dose||'—');
+  const wt=fmt(p.current_weight||p.weight,'kg');
+  const ch=fmtChange(p.weight_change);
+  const chcls=changeClass(p.weight_change);
+  const bmi=fmt(p.bmi);
+  const startW=p.start_weight||p.initial_weight;
+  const currentW=p.current_weight||p.weight;
+  const totalLossNum=p.total_weight_loss!=null?p.total_weight_loss:(startW!=null&&currentW!=null?currentW-startW:null);
+  const totalLoss=fmtChange(totalLossNum);
+  const startWeight=fmt(startW,'kg');
+  const effects=p.side_effects||p.effects||'None';
+  const injDate=p.last_injection_date||p.injection_date||'—';
+  const nextInj=p.next_injection_date||'—';
+  const weeks=p.weeks_on_medication||p.treatment_weeks||'—';
+  const pr=p.progress_status||p.progress||'';
+  const adherence=p.adherence!=null?Math.round(parseFloat(p.adherence)):null;
+  const weightLossPct=startW&&totalLossNum!=null&&Math.abs(totalLossNum)>0?((Math.abs(totalLossNum)/parseFloat(startW))*100).toFixed(1):null;
+  const sideInfo=sideEffectsSeverity(effects);
+
+  const metricsHtml=`
+    <div class="metric-card weight-loss">
+      <h4>Weight loss</h4>
+      <div class="metric-val">${totalLoss}</div>
+      <div class="metric-sub">${weightLossPct!=null?weightLossPct+'% of start':'Total change'}</div>
+    </div>
+    <div class="metric-card">
+      <h4>Adherence</h4>
+      <div class="metric-val">${adherence!=null?adherence+'%':'—'}</div>
+      <div class="metric-sub">Last 30 days</div>
+    </div>
+    <div class="metric-card ${trendCardClass(pr)}">
+      <h4>Current trend</h4>
+      <div class="metric-val">${trendLabel(pr)}</div>
+      <div class="metric-sub">Based on recent data</div>
+    </div>
+    <div class="metric-card ${sideInfo.cls}">
+      <h4>Side effects</h4>
+      <div class="metric-val">${sideInfo.label}</div>
+      <div class="metric-sub">Current severity</div>
+    </div>`;
+
+  const recentHtml=`
+    <div class="recent-section">
+      <h4>Recent activity</h4>
+      <div class="recent-row"><span>Last injection</span><span>${injDate}</span></div>
+      <div class="recent-row"><span>Next injection</span><span>${nextInj}</span></div>
+      <div class="recent-row"><span>Last weight</span><span>${wt}</span></div>
+    </div>`;
+
+  const calGoal=p.daily_calories_goal??p.daily_calories??'—';
+  const proGoal=p.daily_protein_goal??p.daily_protein??'—';
+  const nutritionSectionHtml=`
+    <div class="nutrition-section">
+      <h4><i class="fas fa-utensils"></i> Nutrition diary</h4>
+      <div class="nutrition-goals">
+        <div class="nutrition-goal"><i class="fas fa-fire" style="color:var(--a)"></i><div><div class="nug-lbl">Daily calories goal</div><div class="nug-val">${calGoal}${typeof calGoal==='number'?' kcal':''}</div></div></div>
+        <div class="nutrition-goal"><i class="fas fa-drumstick-bite" style="color:var(--r)"></i><div><div class="nug-lbl">Daily protein goal</div><div class="nug-val">${proGoal}${typeof proGoal==='number'?' g':''}</div></div></div>
+      </div>
+      <div class="nutrition-diary-entries" id="nutritionDiaryEntries"><div class="nutrition-diary-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div></div>
+    </div>`;
+
+  document.getElementById('modalTitle').textContent=name;
+  document.getElementById('modalBody').innerHTML=`
+    <div class="modal-avatar" style="background:${col}">${ini(name)}</div>
+    <div class="metrics-row">${metricsHtml}</div>
+    ${recentHtml}
+    ${nutritionSectionHtml}
+    <div class="modal-row">
+      <div class="modal-field"><div class="modal-label">Current weight</div><div class="modal-val">${wt}</div></div>
+      <div class="modal-field"><div class="modal-label">Weekly change</div><div class="modal-val ${chcls}">${ch}</div></div>
+      <div class="modal-field"><div class="modal-label">Start weight</div><div class="modal-val">${startWeight}</div></div>
+      <div class="modal-field"><div class="modal-label">Total loss</div><div class="modal-val ${chcls}">${totalLoss}</div></div>
+      <div class="modal-field"><div class="modal-label">Dose</div><div class="modal-val">${dose}</div></div>
+      <div class="modal-field"><div class="modal-label">BMI</div><div class="modal-val">${bmi}</div></div>
+      <div class="modal-field"><div class="modal-label">Medication</div><div class="modal-val">${drug}</div></div>
+      <div class="modal-field"><div class="modal-label">Weeks on meds</div><div class="modal-val">${weeks}</div></div>
+      <div class="modal-field"><div class="modal-label">Last injection</div><div class="modal-val">${injDate}</div></div>
+      <div class="modal-field"><div class="modal-label">Next injection</div><div class="modal-val">${nextInj}</div></div>
+      <div class="modal-field full"><div class="modal-label">Side effects</div><div class="modal-val ${effects!=='None'?'warn':''}">${effects}</div></div>
+      <div class="modal-field full"><div class="modal-label">Email</div><div class="modal-val">${p.email||'—'}</div></div>
+      <div class="modal-field full"><div class="modal-label">Phone</div><div class="modal-val">${p.phone||'—'}</div></div>
+    </div>`;
+  document.getElementById('modal').classList.add('show');
+  document.body.style.overflow='hidden';
+
+  const patientId=p.id||p.ID;
+  if(patientId) loadNutritionDiary(patientId, calGoal, proGoal);
+  else {
+    const nel=document.getElementById('nutritionDiaryEntries');
+    if(nel) nel.innerHTML='<div class="nutrition-diary-empty">No diary data</div>';
+  }
+}
+
+async function loadNutritionDiary(patientId, caloriesGoal, proteinGoal){
+  const el=document.getElementById('nutritionDiaryEntries');
+  if(!el) return;
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${patientId}/nutrition?period=14`,{headers:{'Authorization':`Bearer ${token}`}});
+    const data=await r.json().catch(()=>null);
+    const history=Array.isArray(data)?data:(data&&data.history)?data.history:(data&&data.data&&data.data.history)?data.data.history:[];
+    const stats=data&&data.statistics?data.statistics:null;
+    const goalCal=stats&&stats.calories_goal!=null?stats.calories_goal:caloriesGoal;
+    const goalPro=stats&&stats.protein_goal!=null?stats.protein_goal:proteinGoal;
+    if(!history||history.length===0){
+      el.innerHTML='<div class="nutrition-diary-empty"><i class="fas fa-utensils"></i> No nutrition entries yet</div>';
+      return;
+    }
+    const sorted=history.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,14);
+    const goalC=parseFloat(goalCal)||0;
+    const goalP=parseFloat(goalPro)||0;
+    el.innerHTML=sorted.map(day=>{
+      const d=new Date(day.date);
+      const dateStr=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+      const cal=day.total_calories!=null?parseFloat(day.total_calories):null;
+      const pro=day.total_protein!=null?parseFloat(day.total_protein):null;
+      const cGoal=day.calories_goal!=null?parseFloat(day.calories_goal):goalC;
+      const pGoal=day.protein_goal!=null?parseFloat(day.protein_goal):goalP;
+      const calPct=cGoal>0&&cal!=null?Math.round((cal/cGoal)*100):null;
+      const proPct=pGoal>0&&pro!=null?Math.round((pro/pGoal)*100):null;
+      const calCls=calPct!=null?(calPct>=90?'nd-ok':calPct>=70?'nd-cal':''):'';
+      const proCls=proPct!=null?(proPct>=90?'nd-ok':proPct>=70?'nd-pro':''):'';
+      const calText=calPct!=null?`${calPct}%`:(cal!=null?`${Math.round(cal)} kcal`:'—');
+      const proText=proPct!=null?`${proPct}%`:(pro!=null?`${Math.round(pro)} g`:'—');
+      return `<div class="nutrition-day"><span class="nd-date">${dateStr}</span><span class="${calCls}">${calText}</span><span class="${proCls}">${proText}</span></div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML='<div class="nutrition-diary-empty">Could not load nutrition data</div>';
+  }
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');
+  document.body.style.overflow='';
+}
+
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+
+let currentPatient=null, currentPatientId=null, weightChartInstance=null, weightTabChartInstance=null;
+
+function openProfile(idx){
+  const p=filt[idx];
+  if(!p) return;
+  currentPatient=p;
+  currentPatientId=p.id||p.ID;
+  const name=`${p.first_name||''} ${p.last_name||''}`.trim()||p.name||'Unknown';
+  const drug=p.current_medication||p.drug||'—';
+  const dose=p.current_dose!=null?`${p.current_dose} mg`:(p.dose||'—');
+  const wt=fmt(p.current_weight||p.weight,'kg');
+  const startW=p.start_weight||p.initial_weight;
+  const totalLossNum=p.total_weight_loss!=null?p.total_weight_loss:(startW!=null&&(p.current_weight||p.weight)?(p.current_weight||p.weight)-startW:null);
+  const totalLoss=fmtChange(totalLossNum);
+  const weightLossPct=startW&&totalLossNum!=null&&Math.abs(totalLossNum)>0?((Math.abs(totalLossNum)/parseFloat(startW))*100).toFixed(1)+'% of start':'—';
+  const pr=p.progress_status||p.progress||'';
+  const adherence=p.adherence!=null?Math.round(parseFloat(p.adherence)):null;
+  const sideInfo=sideEffectsSeverity(p.side_effects||p.effects||'None');
+
+  document.getElementById('listView').style.display='none';
+  document.getElementById('profileView').style.display='block';
+
+  document.getElementById('profilePatientName').textContent=name;
+  document.getElementById('profileAge').textContent=p.age!=null?`Age ${p.age}`:'—';
+  document.getElementById('profileDrug').textContent=drug;
+  document.getElementById('profileDose').textContent=dose;
+  document.getElementById('profileCurrentWeight').textContent=wt;
+  document.getElementById('profileInitialWeight').textContent=fmt(startW,'kg');
+  document.getElementById('profileTherapyDays').textContent=p.therapy_days??p.weeks_on_medication??p.treatment_weeks??'—';
+
+  document.getElementById('pmWeightLoss').textContent=totalLoss;
+  document.getElementById('pmWeightLossPct').textContent=weightLossPct;
+  document.getElementById('pmAdherence').textContent=adherence!=null?adherence+'%':'—';
+  document.getElementById('pmTrend').textContent=trendLabel(pr);
+  document.getElementById('pmSide').textContent=sideInfo.label;
+  document.getElementById('pmTrendCard').className='metric-card '+trendCardClass(pr);
+  document.getElementById('pmSideCard').className='metric-card '+sideInfo.cls;
+
+  document.getElementById('oiEmail').textContent=p.email||'—';
+  document.getElementById('oiPhone').textContent=p.phone||'—';
+  document.getElementById('oiHeight').textContent=p.height!=null?`${p.height} cm`:'—';
+  document.getElementById('oiCalories').textContent=p.daily_calories_goal??p.daily_calories??'—';
+  document.getElementById('oiProtein').textContent=p.daily_protein_goal??p.daily_protein??'—';
+  document.getElementById('oiDrug').textContent=drug;
+  document.getElementById('oiDose').textContent=dose;
+
+  document.getElementById('csInitial').textContent=fmt(startW,'kg');
+  document.getElementById('csCurrent').textContent=wt;
+  document.getElementById('csTarget').textContent=fmt(p.target_weight||p.target_weight_kg,'kg');
+
+  document.getElementById('raLastInj').textContent=p.last_injection_date||p.injection_date||'—';
+  document.getElementById('raLastWeight').textContent=wt;
+  document.getElementById('raLastSymptom').textContent='—';
+
+  switchProfileTab('overview');
+  if(currentPatientId){ loadWeightChart(); loadWeightHistory(); loadInjections(); loadNutritionFull(); }
+}
+
+function backToList(){
+  document.getElementById('profileView').style.display='none';
+  document.getElementById('listView').style.display='block';
+  if(weightChartInstance){ weightChartInstance.destroy(); weightChartInstance=null; }
+  if(weightTabChartInstance){ weightTabChartInstance.destroy(); weightTabChartInstance=null; }
+  currentPatient=null; currentPatientId=null;
+}
+
+function switchProfileTab(name){
+  document.querySelectorAll('.profile-tab').forEach(t=>{ t.classList.toggle('active',t.dataset.tab===name); });
+  document.querySelectorAll('.profile-tab-panel').forEach(p=>{ p.classList.toggle('active',p.id==='tab-'+name); });
+  if(name==='weight'&&currentPatientId&&!weightTabChartInstance) loadWeightChart('tab');
+}
+
+function weightChartZoom(delta){ if(weightChartInstance&&typeof weightChartInstance.zoom==='function') weightChartInstance.zoom(delta>0?1.25:0.8); }
+function weightChartReset(){ if(weightChartInstance&&typeof weightChartInstance.resetZoom==='function') weightChartInstance.resetZoom(); }
+
+async function loadWeightChart(which){
+  if(!currentPatientId) return;
+  const period=document.getElementById('weightChartPeriod')?document.getElementById('weightChartPeriod').value:'30d';
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/weight/chart?period=${period}`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    if(!d||d.error){ if(weightChartInstance) weightChartInstance.destroy(); weightChartInstance=null; return; }
+    const rawDates=d.dates||[];
+    const dates=rawDates.map(x=>{ const t=new Date(x); return t.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}); });
+    const weights=d.weights||[];
+    const injections=(d.injections||[]).map(i=>({ date: new Date(i.date).toDateString(), dosage_mg: i.dosage_mg, drug_type: i.drug_type||'' }));
+    function getDoseForIndex(i){
+      if(!rawDates[i]||!injections.length) return '';
+      const dStr=new Date(rawDates[i]).toDateString();
+      const inj=injections.find(x=>x.date===dStr);
+      return inj&&inj.dosage_mg!=null?String(inj.dosage_mg)+' mg':'';
+    }
+    if(weightChartInstance) weightChartInstance.destroy();
+    const ctx=document.getElementById('weightChartCanvas');
+    if(!ctx) return;
+    weightChartInstance=new Chart(ctx,{
+      type:'line',
+      data:{
+        labels:dates,
+        datasets:[{
+          label:'Weight (kg)',
+          data:weights,
+          borderColor:'#2563eb',
+          backgroundColor:'rgba(37,99,235,0.08)',
+          fill:true,
+          tension:0.35,
+          pointRadius:4,
+          pointHoverRadius:6,
+          pointBackgroundColor:'#2563eb'
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        interaction:{ intersect:false, mode:'index' },
+        plugins:{
+          legend:{ display:false },
+          tooltip:{
+            callbacks:{
+              label:function(t){
+                const dose=getDoseForIndex(t.dataIndex);
+                let s='Weight: '+t.parsed.y+' kg';
+                if(dose) s+=' · Dose: '+dose;
+                return s;
+              },
+              title:function(t){ return t[0]&&t[0].label?t[0].label:''; }
+            }
+          },
+          zoom:{ limits:{ x:{ min:'original',max:'original' }, y:{ min:0,max:200 } }, zoom: { wheel:{ enabled:true }, pinch:{ enabled:true }, mode:'xy' }, pan: { enabled:true, mode:'xy' } }
+        },
+        scales:{
+          y:{
+            beginAtZero:false,
+            title:{ display:true, text:'Weight (kg)', font:{ size:12 }, color:'#64748b' },
+            grid:{ color:'#e2e8f0' },
+            ticks:{ color:'#64748b', font:{ size:11 } }
+          },
+          x:{
+            title:{ display:true, text:'Date', font:{ size:12 }, color:'#64748b' },
+            grid:{ display:false },
+            ticks:{ color:'#64748b', font:{ size:11 }, maxRotation:45 }
+          }
+        }
+      }
+    });
+    if(which==='tab'&&document.getElementById('weightTabChartCanvas')){
+      if(weightTabChartInstance) weightTabChartInstance.destroy();
+      weightTabChartInstance=new Chart(document.getElementById('weightTabChartCanvas'),{
+        type:'line',
+        data:{ labels:dates, datasets:[{ label:'Weight (kg)', data:weights, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.08)', fill:true, tension:0.35, pointRadius:4, pointBackgroundColor:'#2563eb' }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:function(t){ const dose=getDoseForIndex(t.dataIndex); let s='Weight: '+t.parsed.y+' kg'; if(dose) s+=' · Dose: '+dose; return s; } } } }, scales:{ y:{ beginAtZero:false, title:{ display:true, text:'Weight (kg)' } }, x:{ title:{ display:true, text:'Date' } } } }
+      });
+    }
+  } catch(e){ if(weightChartInstance) weightChartInstance.destroy(); weightChartInstance=null; }
+}
+
+async function loadWeightHistory(){
+  if(!currentPatientId) return;
+  const tbody=document.getElementById('weightHistoryBody');
+  if(!tbody) return;
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/weight/history?limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const list=(d.weights||d.data||d.list||Array.isArray(d)?d:[]);
+    if(!list.length){ tbody.innerHTML='<tr><td colspan="3">No data</td></tr>'; return; }
+    tbody.innerHTML=list.slice(0,50).map(w=>{
+      const date=w.date?new Date(w.date).toLocaleDateString('en-GB'):'—';
+      const kg=w.weight_kg!=null?w.weight_kg:w.weight;
+      return `<tr><td>${kg!=null?kg:'—'}</td><td>${date}</td><td>${(w.notes||'—').toString().slice(0,40)}</td></tr>`;
+    }).join('');
+  } catch(e){ tbody.innerHTML='<tr><td colspan="3">Could not load</td></tr>'; }
+}
+
+async function loadInjections(){
+  if(!currentPatientId) return;
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/injections?limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+    const d=await r.json().catch(()=>null);
+    const stats=d.statistics||d.stats||{};
+    const list=(d.history||d.injections||d.data||[]);
+    document.getElementById('injTotal').textContent=stats.total_injections??list.length??'—';
+    document.getElementById('injAdherence').textContent=stats.adherence!=null?Math.round(stats.adherence)+'%':'—';
+    document.getElementById('injMissed').textContent=stats.missed_doses??'—';
+    var injDoseStr='—';
+    if(currentPatient){ injDoseStr=currentPatient.current_dose!=null?currentPatient.current_dose+' mg':(currentPatient.dose||'—'); }
+    document.getElementById('injDose').textContent=injDoseStr;
+    const container=document.getElementById('injectionHistoryList');
+    if(!container) return;
+    if(!list.length){ container.innerHTML='<div class="placeholder-tab">No injections</div>'; return; }
+    container.innerHTML=list.slice(0,30).map(i=>{
+      const date=i.date?new Date(i.date).toLocaleDateString('en-GB'):'—';
+      const dose=i.dosage_mg!=null?i.dosage_mg:i.dose;
+      return `<div class="inj-item"><span>${date}</span><span>${dose!=null?dose+' mg':''} ${(i.drug_type||i.drug||'').toString()}</span></div>`;
+    }).join('');
+  } catch(e){ document.getElementById('injectionHistoryList').innerHTML='<div class="placeholder-tab">Could not load</div>'; }
+}
+
+async function loadNutritionFull(){
+  const el=document.getElementById('nutritionDiaryFull');
+  if(!el||!currentPatientId) return;
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/nutrition?period=30`,{headers:{'Authorization':`Bearer ${token}`}});
+    const data=await r.json().catch(()=>null);
+    const stats=data&&data.statistics?data.statistics:{};
+    const history=data&&data.history?data.history:(Array.isArray(data)?data:[]);
+    document.getElementById('nutAvgCal').textContent=stats.average_calories!=null?Math.round(stats.average_calories):'—';
+    document.getElementById('nutAvgPro').textContent=stats.average_protein!=null?Math.round(stats.average_protein):'—';
+    if(!history.length){ el.innerHTML='<div class="nutrition-diary-empty">No nutrition entries</div>'; return; }
+    const sorted=history.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,14);
+    const goalCal=stats.calories_goal||(currentPatient&&currentPatient.daily_calories_goal)||0;
+    const goalPro=stats.protein_goal||(currentPatient&&currentPatient.daily_protein_goal)||0;
+    el.innerHTML=sorted.map(day=>{
+      const d=new Date(day.date);
+      const dateStr=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+      const cal=day.total_calories!=null?Math.round(day.total_calories):null;
+      const pro=day.total_protein!=null?Math.round(day.total_protein):null;
+      const cPct=goalCal&&cal!=null?Math.round((cal/goalCal)*100):null;
+      const pPct=goalPro&&pro!=null?Math.round((pro/goalPro)*100):null;
+      return `<div class="nutrition-day"><span class="nd-date">${dateStr}</span><span class="${cPct>=90?'nd-ok':cPct>=70?'nd-cal':''}">${cPct!=null?cPct+'%':cal!=null?cal+' kcal':'—'}</span><span class="${pPct>=90?'nd-ok':pPct>=70?'nd-pro':''}">${pPct!=null?pPct+'%':pro!=null?pro+' g':'—'}</span></div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="nutrition-diary-empty">Could not load</div>'; }
+}
+
+load();
+</script>
+</body>
+</html>
