@@ -120,7 +120,7 @@ main{max-width:1400px;margin:0 auto;padding:24px}
 .nutrition-goal .nug-lbl{font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.4px}
 .nutrition-goal .nug-val{font-size:15px;font-weight:700;color:var(--s)}
 .nutrition-diary-entries{max-height:200px;overflow-y:auto}
-.nutrition-day{border-bottom:1px solid var(--b);padding:10px 0;font-size:12px;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+.nutrition-day{border-bottom:1px solid var(--b);padding:12px 14px;font-size:12px;display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;min-height:44px}
 .nutrition-day:last-child{border-bottom:none}
 .nutrition-day .nd-date{font-weight:600;color:var(--s)}
 .nutrition-day .nd-cal{color:var(--a)}
@@ -197,7 +197,9 @@ main{max-width:1400px;margin:0 auto;padding:24px}
 .nutrition-period-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
 .nutrition-period-row label{font-size:13px;color:var(--m)}
 .nutrition-period-row select{height:36px;padding:0 12px;border:1px solid var(--b);border-radius:8px;font-size:13px}
-.nutrition-diary-header{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:10px 0;border-bottom:2px solid var(--b);font-size:11px;font-weight:700;color:var(--m);text-transform:uppercase}
+.nutrition-diary-header{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:12px 14px;border-bottom:2px solid var(--b);font-size:11px;font-weight:700;color:var(--s2);text-transform:uppercase;background:var(--bg)}
+.nutrition-diary-full{background:#fff;border:1px solid var(--b);border-radius:10px;overflow:hidden}
+.nutrition-hint{font-size:12px;color:var(--m);margin-top:8px}
 </style>
 </head>
 <body>
@@ -925,19 +927,31 @@ async function loadInjections(){
 async function loadNutritionFull(period){
   period=period||'30';
   const el=document.getElementById('nutritionDiaryFull');
+  const nutAvgCalEl=document.getElementById('nutAvgCal');
+  const nutAvgProEl=document.getElementById('nutAvgPro');
   if(!el||!currentPatientId) return;
   el.innerHTML='<div class="nutrition-diary-loading"><i class="fas fa-spinner fa-spin"></i> Loading nutrition…</div>';
   try {
     const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/nutrition?period=${period}`,{headers:{'Authorization':`Bearer ${token}`}});
     const data=await r.json().catch(()=>null);
-    if(!r.ok){ el.innerHTML='<div class="nutrition-diary-empty">Could not load</div>'; return; }
-    const stats=data&&data.statistics?data.statistics:{};
-    const history=data&&data.history?data.history:(Array.isArray(data)?data:[]);
-    document.getElementById('nutAvgCal').textContent=stats.average_calories!=null?Math.round(stats.average_calories):'—';
-    document.getElementById('nutAvgPro').textContent=stats.average_protein!=null?Math.round(stats.average_protein):'—';
+    if(!r.ok){
+      el.innerHTML='<div class="nutrition-diary-empty">Could not load. Check console for details.</div>';
+      if(nutAvgCalEl) nutAvgCalEl.textContent='—';
+      if(nutAvgProEl) nutAvgProEl.textContent='—';
+      return;
+    }
+    const stats=data&&data.statistics?data.statistics:(data&&data.stats)?data.stats:{};
+    const history=(data&&data.history?data.history:data&&data.daily?data.daily:data&&data.entries?data.entries:Array.isArray(data)?data:(data&&data.data&&Array.isArray(data.data)?data.data:[]))||[];
+    const avgCal=stats.average_calories!=null?stats.average_calories:stats.avg_calories;
+    const avgPro=stats.average_protein!=null?stats.average_protein:stats.avg_protein;
+    if(nutAvgCalEl) nutAvgCalEl.textContent=avgCal!=null?Math.round(avgCal):'—';
+    if(nutAvgProEl) nutAvgProEl.textContent=avgPro!=null?Math.round(avgPro):'—';
     const goalCal=stats.average_calories_goal||stats.calories_goal||(currentPatient&&currentPatient.daily_calories_goal)||0;
     const goalPro=stats.average_protein_goal||stats.protein_goal||(currentPatient&&currentPatient.daily_protein_goal)||0;
-    if(!history.length){ el.innerHTML='<div class="nutrition-diary-empty">No nutrition entries for this period</div>'; return; }
+    if(!history.length){
+      el.innerHTML='<div class="nutrition-diary-empty"><p>No daily nutrition entries for this period.</p><p class="nutrition-hint">Averages above are from available data.</p></div>';
+      return;
+    }
     const sorted=history.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,30);
     el.innerHTML=`
       <div class="nutrition-diary-header">
@@ -945,17 +959,20 @@ async function loadNutritionFull(period){
       </div>
       ${sorted.map(day=>{
         const dateStr=day.date?(new Date(day.date+'T12:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})):'—';
-        const cal=day.total_calories!=null?day.total_calories:null;
-        const pro=day.total_protein!=null?day.total_protein:null;
+        const cal=day.total_calories!=null?day.total_calories:day.calories!=null?day.calories:null;
+        const pro=day.total_protein!=null?day.total_protein:day.protein!=null?day.protein:null;
         const dayGoalCal=day.calories_goal||goalCal;
         const dayGoalPro=day.protein_goal||goalPro;
         const cPct=dayGoalCal&&cal!=null?Math.round((cal/dayGoalCal)*100):(day.calories_percent!=null?Math.round(day.calories_percent):null);
         const pPct=dayGoalPro&&pro!=null?Math.round((pro/dayGoalPro)*100):(day.protein_percent!=null?Math.round(day.protein_percent):null);
-        const mealsCount=day.meals_count!=null?day.meals_count:'';
         const mealsTip=day.meals&&day.meals.length?` (${day.meals.length} meals)`:'';
         return `<div class="nutrition-day"><span class="nd-date">${dateStr}</span><span class="${cPct>=90?'nd-ok':cPct>=70?'nd-cal':''}">${cPct!=null?cPct+'%':cal!=null?cal+' kcal':'—'}${mealsTip}</span><span class="${pPct>=90?'nd-ok':pPct>=70?'nd-pro':''}">${pPct!=null?pPct+'%':pro!=null?pro+' g':'—'}</span></div>`;
       }).join('')}`;
-  } catch(e){ el.innerHTML='<div class="nutrition-diary-empty">Could not load</div>'; }
+  } catch(e){
+    el.innerHTML='<div class="nutrition-diary-empty">Error loading nutrition. Try another period.</div>';
+    if(nutAvgCalEl) nutAvgCalEl.textContent='—';
+    if(nutAvgProEl) nutAvgProEl.textContent='—';
+  }
 }
 
 load();
