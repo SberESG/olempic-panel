@@ -357,7 +357,7 @@ main{max-width:1400px;margin:0 auto;padding:24px}
 </div>
 
 <script>
-const API = 'http://52.54.172.121';
+const API = (typeof location!=='undefined'&&location.hostname&&location.hostname.includes('vercel.app')) ? '' : 'http://52.54.172.121';
 const PER = 12;
 const COLORS = ['linear-gradient(135deg,#0d9488,#0ea5e9)','linear-gradient(135deg,#7c3aed,#0d9488)','linear-gradient(135deg,#db2777,#9333ea)','linear-gradient(135deg,#0891b2,#0d9488)','linear-gradient(135deg,#1d4ed8,#7c3aed)','linear-gradient(135deg,#16a34a,#0d9488)','linear-gradient(135deg,#ea580c,#dc2626)','linear-gradient(135deg,#be185d,#9333ea)'];
 
@@ -394,36 +394,64 @@ function changeClass(v){
   return n<0?'ok':n>0?'bad':'';
 }
 
+function showLoadError(msg){
+  const ov=document.getElementById('ov');
+  const lt=document.getElementById('lt');
+  ov.classList.remove('hide');
+  lt.innerHTML=msg+'<br><br><button type="button" onclick="document.getElementById(\'ov\').classList.add(\'hide\')" style="margin-top:8px;padding:8px 16px;background:var(--t);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">Close</button>';
+  lt.style.color='var(--r)';
+  lt.style.maxWidth='420px';
+  lt.style.textAlign='center';
+  const spin=ov.querySelector('.spin');
+  if(spin) spin.style.display='none';
+}
+
 async function load(){
-  document.getElementById('lt').textContent='Authenticating…';
-  const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'petrov@yandex.ru',password:'PetrovDoc1!'})});
-  const ld=await lr.json();
-  token=ld.token.access_token;
-  try{ localStorage.setItem('doctor_token',token); }catch(e){}
-  const doc=ld.doctor||{};
-  document.getElementById('dn').textContent=doc.name||doc.email||'Petrov';
+  const ov=document.getElementById('ov');
+  const lt=document.getElementById('lt');
+  try {
+    lt.style.color='';
+    ov.querySelector('.spin').style.display='';
+    lt.textContent='Authenticating…';
+    const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'petrov@yandex.ru',password:'PetrovDoc1!'})});
+    if(!lr.ok) throw new Error('Login failed: '+lr.status);
+    const ld=await lr.json();
+    if(!ld||!ld.token||!ld.token.access_token) throw new Error('Invalid login response');
+    token=ld.token.access_token;
+    try{ localStorage.setItem('doctor_token',token); }catch(e){}
+    const doc=ld.doctor||{};
+    document.getElementById('dn').textContent=doc.name||doc.email||'Petrov';
 
-  document.getElementById('lt').textContent='Loading patients…';
-  let pg=1;
-  while(true){
-    const r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
-    const d=await r.json();
-    const pts=Array.isArray(d)?d:(d.patients||d.data||[]);
-    if(!pts||!pts.length) break;
-    all=all.concat(pts);
-    if(all.length>=(d.total||0)||pts.length<50) break;
-    pg++;
+    lt.textContent='Loading patients…';
+    let pg=1;
+    while(true){
+      const r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+      if(!r.ok) throw new Error('Patients request failed: '+r.status);
+      const d=await r.json();
+      const pts=Array.isArray(d)?d:(d.patients||d.data||[]);
+      if(!pts||!pts.length) break;
+      all=all.concat(pts);
+      if(all.length>=(d.total||0)||pts.length<50) break;
+      pg++;
+    }
+
+    const meds=[...new Set(all.map(p=>p.current_medication||p.drug).filter(Boolean))];
+    const fm=document.getElementById('fM');
+    fm.innerHTML='<option value="">All</option>';
+    meds.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;fm.appendChild(o)});
+
+    filt=[...all];
+    updateStats();
+    render();
+    ov.classList.add('hide');
+  } catch(e) {
+    console.error(e);
+    const isCors=e.name==='TypeError'||(e.message&&e.message.includes('fetch'));
+    const msg=isCors
+      ? 'Cannot reach API. The server at 52.54.172.121 must allow requests from this site (CORS). Add your Vercel URL to the API CORS settings.'
+      : 'Error: '+(e.message||e);
+    showLoadError(msg);
   }
-
-  // Populate medication filter
-  const meds=[...new Set(all.map(p=>p.current_medication||p.drug).filter(Boolean))];
-  const fm=document.getElementById('fM');
-  meds.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;fm.appendChild(o)});
-
-  filt=[...all];
-  updateStats();
-  render();
-  document.getElementById('ov').classList.add('hide');
 }
 
 function updateStats(){
