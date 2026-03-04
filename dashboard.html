@@ -952,7 +952,8 @@ function render(){
     const startWeight=fmt(p.start_weight||p.initial_weight,'kg');
     const totalLoss=fmtChange(p.total_weight_loss||(p.start_weight&&p.current_weight?p.current_weight-p.start_weight:null));
     const therapyDays=p._therapyDays!=null?p._therapyDays:(inj.daysOnTherapy!=null?inj.daysOnTherapy:(p.therapy_days??p.weeks_on_medication??p.treatment_weeks??'—'));
-    const therapyDaysStr=typeof therapyDays==='number'?(therapyDays+' days'+(inj.weeksOnMeds!=null?' ('+inj.weeksOnMeds+' weeks)':'')):therapyDays;
+    const weeksFromDays=typeof therapyDays==='number'?Math.floor(therapyDays/7):null;
+    const therapyDaysStr=typeof therapyDays==='number'?(therapyDays+' days'+(weeksFromDays!=null&&weeksFromDays>0?' ('+weeksFromDays+' weeks)':'')):therapyDays;
     const phone=p.phone||'—';
 
     const idx = st + i;
@@ -1037,7 +1038,8 @@ function openModal(idx){
   const effects=p.side_effects||p.effects||'None';
   const inj=injectionScheduleFromPatient(p);
   const therapyDays=inj.daysOnTherapy!=null?inj.daysOnTherapy:(p.therapy_days??p.weeks_on_medication??p.treatment_weeks??'—');
-  const therapyDaysStr=typeof therapyDays==='number'?(therapyDays+' days'+(inj.weeksOnMeds!=null?' ('+inj.weeksOnMeds+' weeks)':'')):therapyDays;
+  const weeksFromDays=typeof therapyDays==='number'?Math.floor(therapyDays/7):null;
+  const therapyDaysStr=typeof therapyDays==='number'?(therapyDays+' days'+(weeksFromDays!=null&&weeksFromDays>0?' ('+weeksFromDays+' weeks)':'')):therapyDays;
   const pr=p.progress_status||p.progress||'';
   const adherence=p.adherence!=null?Math.round(parseFloat(p.adherence)):null;
   const weightLossPct=startW&&totalLossNum!=null&&Math.abs(totalLossNum)>0?((Math.abs(totalLossNum)/parseFloat(startW))*100).toFixed(1):null;
@@ -1190,7 +1192,9 @@ function openProfile(idx){
   document.getElementById('profileCurrentWeight').textContent=wt;
   document.getElementById('profileInitialWeight').textContent=fmt(startW,'kg');
   const inj=injectionScheduleFromPatient(p);
-  const therapyDisplay=inj.daysOnTherapy!=null?(inj.daysOnTherapy+' days'+(inj.weeksOnMeds!=null?' ('+inj.weeksOnMeds+' weeks)':'')+' of therapy'):(p.therapy_days!=null||p.weeks_on_medication!=null||p.treatment_weeks!=null?String(p.therapy_days??p.weeks_on_medication??p.treatment_weeks):'—');
+  const therapyDaysNum=inj.daysOnTherapy!=null?inj.daysOnTherapy:(typeof p.therapy_days==='number'?p.therapy_days:typeof p.weeks_on_medication==='number'?p.weeks_on_medication*7:null);
+  const therapyWeeksNum=therapyDaysNum!=null?Math.floor(therapyDaysNum/7):null;
+  const therapyDisplay=therapyDaysNum!=null?(therapyDaysNum+' days'+(therapyWeeksNum!=null&&therapyWeeksNum>0?' ('+therapyWeeksNum+' weeks)':'')+' of therapy'):(p.therapy_days!=null||p.weeks_on_medication!=null||p.treatment_weeks!=null?String(p.therapy_days??p.weeks_on_medication??p.treatment_weeks):'—');
   document.getElementById('profileTherapyDays').textContent=therapyDisplay;
 
   document.getElementById('pmWeightLoss').textContent=totalLoss;
