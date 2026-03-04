@@ -1273,6 +1273,15 @@ async function loadWeightChart(which){
     const tMin=dataPoints.length?Math.min(...dataPoints.map(p=>p.x)):Date.now();
     const tMax=dataPoints.length?Math.max(...dataPoints.map(p=>p.x)):Date.now();
     const tPad=Math.max((tMax-tMin)*0.02,86400000*2);
+    const STABLE_THRESHOLD=0.3;
+    function segmentColor(ctx,isFill){
+      if(ctx.p0.skip||ctx.p1.skip) return 'transparent';
+      const y0=ctx.p0.parsed.y,y1=ctx.p1.parsed.y;
+      const diff=y1-y0;
+      if(diff<-STABLE_THRESHOLD){ return isFill?'rgba(34,197,94,0.15)':'#22c55e'; }
+      if(diff>STABLE_THRESHOLD){ return isFill?'rgba(239,68,68,0.15)':'#ef4444'; }
+      return isFill?'rgba(245,158,11,0.15)':'#f59e0b';
+    }
     if(weightChartInstance) weightChartInstance.destroy();
     const ctx=document.getElementById('weightChartCanvas');
     if(!ctx) return;
@@ -1282,13 +1291,12 @@ async function loadWeightChart(which){
         datasets:[{
           label:'Weight (kg)',
           data:dataPoints,
-          borderColor:'#2563eb',
-          backgroundColor:'rgba(37,99,235,0.08)',
+          segment:{ borderColor:function(c){ return segmentColor(c,false); }, backgroundColor:function(c){ return segmentColor(c,true); } },
           fill:true,
           tension:0.35,
           pointRadius:4,
           pointHoverRadius:6,
-          pointBackgroundColor:'#2563eb'
+          pointBackgroundColor:function(ctx){ const i=ctx.dataIndex; const d=dataPoints; if(!d.length||i<0||i>=d.length) return '#64748b'; const y0=i>0?d[i-1].y:d[i].y; const y1=d[i].y; const diff=y1-y0; if(diff<-STABLE_THRESHOLD) return '#22c55e'; if(diff>STABLE_THRESHOLD) return '#ef4444'; return '#f59e0b'; }
         }]
       },
       options:{
@@ -1327,7 +1335,7 @@ async function loadWeightChart(which){
       if(weightTabChartInstance) weightTabChartInstance.destroy();
       weightTabChartInstance=new Chart(document.getElementById('weightTabChartCanvas'),{
         type:'line',
-        data:{ datasets:[{ label:'Weight (kg)', data:dataPoints, borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.08)', fill:true, tension:0.35, pointRadius:4, pointBackgroundColor:'#2563eb' }] },
+        data:{ datasets:[{ label:'Weight (kg)', data:dataPoints, segment:{ borderColor:function(c){ return segmentColor(c,false); }, backgroundColor:function(c){ return segmentColor(c,true); } }, fill:true, tension:0.35, pointRadius:4, pointBackgroundColor:function(ctx){ const i=ctx.dataIndex; const d=dataPoints; if(!d.length||i<0||i>=d.length) return '#64748b'; const y0=i>0?d[i-1].y:d[i].y; const y1=d[i].y; const diff=y1-y0; if(diff<-STABLE_THRESHOLD) return '#22c55e'; if(diff>STABLE_THRESHOLD) return '#ef4444'; return '#f59e0b'; } }] },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:function(t){ const dose=getDoseForTimestamp(t.parsed.x); let s='Weight: '+t.parsed.y+' kg'; if(dose) s+=' · Dose: '+dose; return s; }, title:function(t){ return t[0]&&t[0].parsed?new Date(t[0].parsed.x).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''; } } } }, scales:{ y:{ beginAtZero:false, title:{ display:true, text:'Weight (kg)' } }, x:{ type:'linear', min:tMin-tPad, max:tMax+tPad, ticks:{ callback:function(v){ return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}); } }, title:{ display:true, text:'Date' } } } }
       });
     }
