@@ -19,6 +19,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--s);line-h
 @keyframes spin{to{transform:rotate(360deg)}}
 .load-txt{font-size:14px;color:var(--m)}
 
+/* Auth (login screen) */
+#loginView{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(1200px 600px at 20% -10%, rgba(14,165,233,.14), transparent 60%),radial-gradient(900px 500px at 90% 0%, rgba(13,148,136,.14), transparent 60%),#fff}
+#loginView.hide{display:none}
+.login-card{width:100%;max-width:460px;background:#fff;border:1px solid var(--b);border-radius:16px;box-shadow:var(--shadow-lg);padding:26px 26px 22px}
+.login-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.login-mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--t),#0ea5e9);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 2px 10px rgba(13,148,136,.35)}
+.login-title{font-size:18px;font-weight:700;color:var(--s);letter-spacing:-.02em;line-height:1.2}
+.login-sub{font-size:13px;color:var(--m);margin-top:2px}
+.login-form{margin-top:18px;display:flex;flex-direction:column;gap:12px}
+.login-row{display:flex;flex-direction:column;gap:6px}
+.login-label{font-size:11px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:.06em}
+.login-input{height:42px;border:1.5px solid var(--b);border-radius:12px;padding:0 12px;font-size:14px;font-family:inherit;color:var(--s);background:#fff;outline:none;transition:box-shadow .15s,border-color .15s}
+.login-input:focus{border-color:var(--t);box-shadow:0 0 0 3px rgba(13,148,136,.14)}
+.login-err{display:none;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.35}
+.login-err.show{display:block}
+.login-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.login-hint{font-size:12px;color:var(--m)}
+.login-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;border:none;border-radius:12px;padding:0 16px;font-weight:700;font-size:13px;color:#fff;background:linear-gradient(135deg,var(--t),#0ea5e9);cursor:pointer;box-shadow:0 2px 10px rgba(13,148,136,.35);transition:transform .15s,box-shadow .15s}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(13,148,136,.35)}
+.login-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+.login-foot{margin-top:14px;font-size:12px;color:var(--m);text-align:center}
+
 header{background:#fff;border-bottom:1px solid var(--b);position:sticky;top:0;z-index:10;box-shadow:var(--shadow)}
 .hdr{max-width:1400px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:12px}
@@ -248,9 +270,37 @@ main{max-width:1400px;margin:0 auto;padding:24px}
 </head>
 <body>
 
-<div id="ov">
+<div id="ov" class="hide">
   <div class="spin"></div>
   <div class="load-txt" id="lt">Connecting…</div>
+</div>
+
+<div id="loginView" class="hide">
+  <div class="login-card">
+    <div class="login-head">
+      <div class="login-mark"><i class="fas fa-heartbeat"></i></div>
+      <div>
+        <div class="login-title">Sign in</div>
+        <div class="login-sub">Doctor portal access</div>
+      </div>
+    </div>
+    <div id="loginErr" class="login-err"></div>
+    <form id="loginForm" class="login-form">
+      <div class="login-row">
+        <label class="login-label" for="loginEmail">Email</label>
+        <input id="loginEmail" class="login-input" type="email" autocomplete="username" placeholder="doctor@email.com" required>
+      </div>
+      <div class="login-row">
+        <label class="login-label" for="loginPassword">Password</label>
+        <input id="loginPassword" class="login-input" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      </div>
+      <div class="login-actions">
+        <div class="login-hint">Use your doctor credentials</div>
+        <button id="loginBtn" class="login-btn" type="submit"><i class="fas fa-right-to-bracket"></i> Sign in</button>
+      </div>
+    </form>
+    <div class="login-foot">Olempic Health</div>
+  </div>
 </div>
 
 <header>
@@ -473,10 +523,6 @@ const API = (typeof location!=='undefined'&&location.hostname&&location.hostname
 const PER = 12;
 const COLORS = ['linear-gradient(135deg,#0d9488,#0ea5e9)','linear-gradient(135deg,#7c3aed,#0d9488)','linear-gradient(135deg,#db2777,#9333ea)','linear-gradient(135deg,#0891b2,#0d9488)','linear-gradient(135deg,#1d4ed8,#7c3aed)','linear-gradient(135deg,#16a34a,#0d9488)','linear-gradient(135deg,#ea580c,#dc2626)','linear-gradient(135deg,#be185d,#9333ea)'];
 
-// Hardcoded auth as in original doctor-panel (no login form)
-const AUTH_EMAIL = 'petrov@yandex.ru';
-const AUTH_PASSWORD = 'PetrovDoc1!';
-
 let all=[], filt=[], page=1, token=null;
 const translationCache=new Map();
 const HAS_CYRILLIC=/[а-яА-ЯёЁ]/;
@@ -571,7 +617,7 @@ function showLoadError(msg){
   const ov=document.getElementById('ov');
   const lt=document.getElementById('lt');
   ov.classList.remove('hide');
-  lt.innerHTML=msg+'<br><br><button type="button" onclick="document.getElementById(\'ov\').classList.add(\'hide\')" style="margin-top:8px;padding:8px 16px;background:var(--t);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">Close</button>';
+  lt.innerHTML=msg+'<br><br><button type="button" onclick="load()" style="margin-top:8px;padding:8px 16px;background:var(--t);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">Retry</button>';
   lt.style.color='var(--r)';
   lt.style.maxWidth='420px';
   lt.style.textAlign='center';
@@ -579,60 +625,102 @@ function showLoadError(msg){
   if(spin) spin.style.display='none';
 }
 
-async function doLogin(){
-  const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:AUTH_EMAIL,password:AUTH_PASSWORD})});
-  if(!lr.ok) throw new Error('Login failed: '+lr.status);
+function showOverlay(text){
+  const ov=document.getElementById('ov');
+  const lt=document.getElementById('lt');
+  ov.classList.remove('hide');
+  const spin=ov.querySelector('.spin');
+  if(spin) spin.style.display='';
+  lt.style.color='';
+  lt.textContent=text||'Loading…';
+}
+
+function hideOverlay(){ document.getElementById('ov').classList.add('hide'); }
+
+function showLogin(message){
+  hideOverlay();
+  const lv=document.getElementById('loginView');
+  const err=document.getElementById('loginErr');
+  if(message){ err.textContent=message; err.classList.add('show'); } else { err.textContent=''; err.classList.remove('show'); }
+  const last=localStorage.getItem('doctor_last_email')||'';
+  const emailEl=document.getElementById('loginEmail');
+  if(emailEl && !emailEl.value) emailEl.value=last;
+  lv.classList.remove('hide');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>{ try{ document.getElementById('loginEmail').focus(); }catch(e){} },0);
+}
+
+function hideLogin(){
+  document.getElementById('loginView').classList.add('hide');
+  document.body.style.overflow='';
+}
+
+function logout(){
+  try{ localStorage.removeItem('doctor_access_token'); localStorage.removeItem('doctor_refresh_token'); localStorage.removeItem('doctor_data'); }catch(e){}
+  token=null;
+  document.getElementById('dn').textContent='—';
+  showLogin();
+}
+
+async function doLogin(email,password){
+  const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})});
+  if(!lr.ok){
+    if(lr.status===401||lr.status===400) throw new Error('Invalid email or password');
+    throw new Error('Login failed: '+lr.status);
+  }
   const ld=await lr.json();
   const tok=(ld.token&&(ld.token.access_token||ld.token.AccessToken))||ld.access_token;
   if(!tok||typeof tok!=='string') throw new Error('Invalid login response');
   token=tok.trim();
   try{
     localStorage.setItem('doctor_access_token',token);
+    localStorage.setItem('doctor_last_email',email);
     if(ld.token&&(ld.token.refresh_token||ld.token.RefreshToken)) localStorage.setItem('doctor_refresh_token',ld.token.refresh_token||ld.token.RefreshToken);
     if(ld.doctor) localStorage.setItem('doctor_data',JSON.stringify(ld.doctor));
   }catch(e){}
   return ld.doctor||{};
 }
 
+async function loadPatients(){
+  all=[]; filt=[]; page=1;
+  showOverlay('Loading patients…');
+  let pg=1;
+  for(;;){
+    const r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+    if(r.status===401) throw new Error('unauthorized');
+    if(!r.ok) throw new Error('Patients request failed: '+r.status);
+    const d=await r.json();
+    const pts=Array.isArray(d)?d:(d.patients||d.data||[]);
+    if(!pts||!pts.length) break;
+    all=all.concat(pts);
+    if(all.length>=(d.total||0)||pts.length<50) break;
+    pg++;
+  }
+
+  const meds=[...new Set(all.map(p=>p.current_medication||p.drug).filter(Boolean))];
+  const fm=document.getElementById('fM');
+  fm.innerHTML='<option value="">All</option>';
+  meds.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;fm.appendChild(o)});
+
+  filt=[...all];
+  updateStats();
+  render();
+  hideOverlay();
+}
+
 async function load(){
-  const ov=document.getElementById('ov');
-  const lt=document.getElementById('lt');
   try {
-    lt.style.color='';
-    ov.querySelector('.spin').style.display='';
-    lt.textContent='Authenticating…';
-    const doc=await doLogin();
-    document.getElementById('dn').textContent=(doc&&doc.name)||(doc&&doc.email)||AUTH_EMAIL.split('@')[0];
+    token=(localStorage.getItem('doctor_access_token')||'').trim();
+    if(!token||token==='null'||token==='undefined'){ showLogin(); return; }
 
-    lt.textContent='Loading patients…';
-    let pg=1;
-    for(;;){
-      let r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
-      if(r.status===401){
-        try{ localStorage.removeItem('doctor_access_token'); localStorage.removeItem('doctor_refresh_token'); localStorage.removeItem('doctor_data'); }catch(e){}
-        await doLogin();
-        r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
-      }
-      if(!r.ok) throw new Error('Patients request failed: '+r.status);
-      const d=await r.json();
-      const pts=Array.isArray(d)?d:(d.patients||d.data||[]);
-      if(!pts||!pts.length) break;
-      all=all.concat(pts);
-      if(all.length>=(d.total||0)||pts.length<50) break;
-      pg++;
-    }
+    let doc={};
+    try{ doc=JSON.parse(localStorage.getItem('doctor_data')||'{}'); }catch(e){}
+    document.getElementById('dn').textContent=doc.name||doc.email||'—';
 
-    const meds=[...new Set(all.map(p=>p.current_medication||p.drug).filter(Boolean))];
-    const fm=document.getElementById('fM');
-    fm.innerHTML='<option value="">All</option>';
-    meds.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;fm.appendChild(o)});
-
-    filt=[...all];
-    updateStats();
-    render();
-    ov.classList.add('hide');
+    await loadPatients();
   } catch(e) {
     console.error(e);
+    if(e && (e.message==='unauthorized' || String(e).includes('unauthorized'))){ logout(); return; }
     const isCors=e.name==='TypeError'||(e.message&&e.message.includes('fetch'));
     const msg=isCors
       ? 'Cannot reach API. The server at 52.54.172.121 must allow requests from this site (CORS). Add your Vercel URL to the API CORS settings.'
@@ -1341,6 +1429,30 @@ async function loadNutritionFull(period){
     if(nutAvgProEl) nutAvgProEl.textContent='—';
   }
 }
+
+async function onLoginSubmit(ev){
+  ev.preventDefault();
+  const btn=document.getElementById('loginBtn');
+  const err=document.getElementById('loginErr');
+  const email=(document.getElementById('loginEmail').value||'').trim();
+  const pass=document.getElementById('loginPassword').value||'';
+  err.textContent=''; err.classList.remove('show');
+  btn.disabled=true;
+  showOverlay('Authenticating…');
+  try{
+    const doc=await doLogin(email,pass);
+    hideLogin();
+    document.getElementById('dn').textContent=(doc&&doc.name)||(doc&&doc.email)||email.split('@')[0];
+    await loadPatients();
+  }catch(e){
+    hideOverlay();
+    showLogin(e.message||'Login failed');
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+document.getElementById('loginForm').addEventListener('submit', onLoginSubmit);
 
 load();
 </script>
