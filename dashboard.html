@@ -346,7 +346,7 @@ main{max-width:1400px;margin:0 auto;padding:24px}
         <p class="profile-meta"><span id="profileAge">—</span> · <span id="profileDrug">—</span> <span id="profileDose">—</span></p>
         <p class="profile-weight"><span id="profileCurrentWeight">—</span> (Initial <span id="profileInitialWeight">—</span>)</p>
       </div>
-      <div class="profile-therapy-days"><span id="profileTherapyDays">—</span> days of therapy</div>
+      <div class="profile-therapy-days"><span id="profileTherapyDays">—</span></div>
     </div>
     <div class="profile-metrics">
       <div class="metric-card weight-loss"><h4>Weight loss</h4><div class="metric-val" id="pmWeightLoss">—</div><div class="metric-sub" id="pmWeightLossPct">—</div></div>
@@ -521,6 +521,7 @@ main{max-width:1400px;margin:0 auto;padding:24px}
 </div>
 
 <script>
+// API: use same origin on Vercel (rewrites to backend); otherwise backend URL (AWS / Digital Ocean etc.)
 const API = (typeof location!=='undefined'&&location.hostname&&location.hostname.includes('vercel.app')) ? '' : 'http://52.54.172.121';
 const PER = 12;
 const COLORS = ['linear-gradient(135deg,#0d9488,#0ea5e9)','linear-gradient(135deg,#7c3aed,#0d9488)','linear-gradient(135deg,#db2777,#9333ea)','linear-gradient(135deg,#0891b2,#0d9488)','linear-gradient(135deg,#1d4ed8,#7c3aed)','linear-gradient(135deg,#16a34a,#0d9488)','linear-gradient(135deg,#ea580c,#dc2626)','linear-gradient(135deg,#be185d,#9333ea)'];
@@ -618,6 +619,16 @@ function parseDateOnlyUTC(v){
     const y=parseInt(m[1],10), mo=parseInt(m[2],10)-1, da=parseInt(m[3],10);
     return new Date(Date.UTC(y,mo,da,12,0,0));
   }
+  const m2=s.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/);
+  if(m2){
+    const da=parseInt(m2[1],10), mo=parseInt(m2[2],10)-1, y=parseInt(m2[3],10);
+    if(mo>=0&&mo<=11&&da>=1&&da<=31) return new Date(Date.UTC(y,mo,da,12,0,0));
+  }
+  const m3=s.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if(m3){
+    const y=parseInt(m3[1],10), mo=parseInt(m3[2],10)-1, da=parseInt(m3[3],10);
+    return new Date(Date.UTC(y,mo,da,12,0,0));
+  }
   return null;
 }
 
@@ -641,14 +652,67 @@ function todayUTC(){
   return new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate(),12,0,0));
 }
 
+function daysFromFirstInjectionDate(firstDate){
+  if(!firstDate) return null;
+  const t=todayUTC().getTime();
+  const f=firstDate.getTime ? firstDate.getTime() : parseDateOnlyUTC(firstDate);
+  if(!f) return null;
+  const days=Math.floor((t-f)/86400000);
+  return days>=0 ? days : null;
+}
+
+function weeksFromFirstInjectionDate(firstDate){
+  const d=daysFromFirstInjectionDate(firstDate);
+  return d!=null ? Math.floor(d/7) : null;
+}
+
+function normalizePatientFromApi(p){
+  if(!p||typeof p!=='object') return p;
+  const o={...p};
+  o.id=o.id??o.ID??o.Id;
+  o.first_name=o.first_name??o.firstName;
+  o.last_name=o.last_name??o.lastName;
+  o.current_weight=o.current_weight??o.weight??o.currentWeight;
+  o.start_weight=o.start_weight??o.initial_weight??o.initialWeight??o.startWeight;
+  o.last_injection_date=o.last_injection_date??o.lastInjectionDate??o.injection_date??o.injectionDate;
+  o.first_injection_date=o.first_injection_date??o.firstInjectionDate??o.first_injection;
+  o.injections=o.injections??o.injection_history??o.Injections;
+  return o;
+}
+
+function getInjectionDatesFromPatient(p){
+  if(!p) return { firstDate:null, lastDate:null };
+  const arr=(p.injections||p.injection_history||p.Injections||[]);
+  const dates=[];
+  const lastRaw=p.last_injection_date||p.lastInjectionDate||p.injection_date||p.injectionDate||p.LastInjectionDate;
+  const firstRaw=p.first_injection_date||p.firstInjectionDate||p.first_injection||p.FirstInjectionDate;
+  if(lastRaw) dates.push(parseDateOnlyUTC(lastRaw));
+  if(firstRaw) dates.push(parseDateOnlyUTC(firstRaw));
+  if(Array.isArray(arr)&&arr.length){
+    arr.forEach(i=>{ const raw=i.date||i.injection_date||i.Date||i.injectionDate; const d=parseDateOnlyUTC(raw); if(d) dates.push(d); });
+  }
+  if(!dates.length) return { firstDate:null, lastDate:null };
+  const valid=dates.filter(Boolean);
+  if(!valid.length) return { firstDate:parseDateOnlyUTC(firstRaw)||null, lastDate:parseDateOnlyUTC(lastRaw)||null };
+  const sorted=valid.slice().sort((a,b)=>a.getTime()-b.getTime());
+  return { firstDate:sorted[0], lastDate:sorted[sorted.length-1] };
+}
+
 function injectionScheduleFromPatient(p){
-  const lastRaw=p && (p.last_injection_date||p.injection_date);
-  const lastDate=parseDateOnlyUTC(lastRaw);
+  const { firstDate: firstFromData, lastDate: lastFromData }=getInjectionDatesFromPatient(p);
+  const lastDate=lastFromData||parseDateOnlyUTC(p&&(p.last_injection_date||p.injection_date));
+  const firstDate=firstFromData||parseDateOnlyUTC(p&&(p.first_injection_date||p.first_injection));
   const nextDate=lastDate?addDaysUTC(lastDate,7):null;
   const overdue=nextDate?nextDate.getTime() < todayUTC().getTime():false;
+  const effectiveFirst=firstDate||lastDate;
+  const daysOnTherapy=effectiveFirst?daysFromFirstInjectionDate(effectiveFirst):(p&&p._therapyDays!=null?p._therapyDays:null);
+  const weeksOnMeds=daysOnTherapy!=null?Math.floor(daysOnTherapy/7):null;
   return {
     lastDate,
     nextDate,
+    firstDate: effectiveFirst||null,
+    daysOnTherapy: daysOnTherapy!=null?daysOnTherapy:(p&&p._therapyDays),
+    weeksOnMeds,
     lastText:lastDate?formatDateUTC(lastDate):'—',
     nextText:nextDate?formatDateUTC(nextDate):'—',
     overdue
@@ -752,16 +816,24 @@ async function loadPatients(){
   all=[]; filt=[]; page=1;
   showOverlay('Loading patients…');
   let pg=1;
+  const limit=100;
   for(;;){
-    const r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
+    const r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=${limit}`,{headers:{'Authorization':`Bearer ${token}`}});
     if(r.status===401) throw new Error('unauthorized');
     if(!r.ok) throw new Error('Patients request failed: '+r.status);
-    const d=await r.json();
-    const pts=Array.isArray(d)?d:(d.patients||d.data||[]);
-    if(!pts||!pts.length) break;
+    const d=await r.json().catch(()=>null);
+    if(!d) throw new Error('Invalid response');
+    const rawPts=Array.isArray(d)?d:(d.patients||d.data||d.list||d.results||[]);
+    if(!rawPts.length) break;
+    const pts=rawPts.map(normalizePatientFromApi);
     all=all.concat(pts);
-    if(all.length>=(d.total||0)||pts.length<50) break;
+    const total=typeof d.total==='number'?d.total:(d.total_count!=null?d.total_count:null);
+    const gotAll=total!=null&&total>0&&all.length>=total;
+    const lastPage=pts.length<limit;
+    if(gotAll||lastPage) break;
     pg++;
+    const ovTxt=document.getElementById('lt');
+    if(ovTxt) ovTxt.textContent='Loading patients… '+all.length+(total!=null?' / '+total:'')+' loaded';
   }
 
   const meds=[...new Set(all.map(p=>p.current_medication||p.drug).filter(Boolean))];
@@ -773,6 +845,40 @@ async function loadPatients(){
   updateStats();
   render();
   hideOverlay();
+  enrichPatientsWithInjectionDays();
+}
+
+async function fetchPatientInjections(patientId){
+  try {
+    const r=await fetch(`${API}/api/v1/doctors/patients/${patientId}/injections?limit=100`,{headers:{'Authorization':`Bearer ${token}`}});
+    if(!r.ok) return [];
+    const d=await r.json().catch(()=>null);
+    const list=Array.isArray(d)?d:(d.history||d.injections||d.data||[]);
+    return Array.isArray(list)?list:[];
+  }catch(e){ return []; }
+}
+
+async function enrichPatientsWithInjectionDays(){
+  const BATCH=5;
+  for(let i=0;i<all.length;i+=BATCH){
+    const batch=all.slice(i,i+BATCH);
+    const results=await Promise.all(batch.map(p=>(p.id||p.ID)?fetchPatientInjections(p.id||p.ID):Promise.resolve([])));
+    batch.forEach((p,idx)=>{
+      const list=results[idx]||[];
+      if(!list.length) return;
+      const firstDate=list.reduce((acc,it)=>{ const raw=it.date||it.injection_date||it.Date; const d=parseDateOnlyUTC(raw); return !d?acc:(!acc||d.getTime()<acc.getTime()?d:acc); },null);
+      if(firstDate){ p._therapyDays=daysFromFirstInjectionDate(firstDate); p._firstInjectionDate=firstDate; }
+    });
+    updateStats();
+    render();
+    if(currentPatient&&batch.includes(currentPatient)){
+      const profileTherapyEl=document.getElementById('profileTherapyDays');
+      if(profileTherapyEl&&currentPatient._therapyDays!=null){
+        const d=currentPatient._therapyDays, w=Math.floor(d/7);
+        profileTherapyEl.textContent=d+' days'+(w?' ('+w+' weeks)':'')+' of therapy';
+      }
+    }
+  }
 }
 
 async function load(){
@@ -845,7 +951,8 @@ function render(){
     const inj=injectionScheduleFromPatient(p);
     const startWeight=fmt(p.start_weight||p.initial_weight,'kg');
     const totalLoss=fmtChange(p.total_weight_loss||(p.start_weight&&p.current_weight?p.current_weight-p.start_weight:null));
-    const weeks=p.weeks_on_medication||p.treatment_weeks||'—';
+    const therapyDays=p._therapyDays!=null?p._therapyDays:(inj.daysOnTherapy!=null?inj.daysOnTherapy:(p.therapy_days??p.weeks_on_medication??p.treatment_weeks??'—'));
+    const therapyDaysStr=typeof therapyDays==='number'?(therapyDays+' days'+(inj.weeksOnMeds!=null?' ('+inj.weeksOnMeds+' weeks)':'')):therapyDays;
     const phone=p.phone||'—';
 
     const idx = st + i;
@@ -866,7 +973,7 @@ function render(){
           <div class="field"><div class="fl2">Total loss</div><div class="fv ${chcls}">${totalLoss}</div></div>
           <div class="field"><div class="fl2">Dose</div><div class="fv">${dose}</div></div>
           <div class="field"><div class="fl2">BMI</div><div class="fv">${bmi}</div></div>
-          <div class="field"><div class="fl2">Weeks on meds</div><div class="fv">${weeks}</div></div>
+          <div class="field"><div class="fl2">Days of therapy</div><div class="fv">${therapyDaysStr}</div></div>
           <div class="field"><div class="fl2">Side effects</div><div class="fv ${effects!=='None'?'warn':''}">${effects}</div></div>
           <div class="field"><div class="fl2">Last injection</div><div class="fv">${inj.lastText}</div></div>
           <div class="field"><div class="fl2">Next injection</div><div class="fv ${inj.overdue?'bad':''}">${inj.nextText}</div></div>
@@ -929,7 +1036,8 @@ function openModal(idx){
   const startWeight=fmt(startW,'kg');
   const effects=p.side_effects||p.effects||'None';
   const inj=injectionScheduleFromPatient(p);
-  const weeks=p.weeks_on_medication||p.treatment_weeks||'—';
+  const therapyDays=inj.daysOnTherapy!=null?inj.daysOnTherapy:(p.therapy_days??p.weeks_on_medication??p.treatment_weeks??'—');
+  const therapyDaysStr=typeof therapyDays==='number'?(therapyDays+' days'+(inj.weeksOnMeds!=null?' ('+inj.weeksOnMeds+' weeks)':'')):therapyDays;
   const pr=p.progress_status||p.progress||'';
   const adherence=p.adherence!=null?Math.round(parseFloat(p.adherence)):null;
   const weightLossPct=startW&&totalLossNum!=null&&Math.abs(totalLossNum)>0?((Math.abs(totalLossNum)/parseFloat(startW))*100).toFixed(1):null;
@@ -991,7 +1099,7 @@ function openModal(idx){
       <div class="modal-field"><div class="modal-label">Dose</div><div class="modal-val">${dose}</div></div>
       <div class="modal-field"><div class="modal-label">BMI</div><div class="modal-val">${bmi}</div></div>
       <div class="modal-field"><div class="modal-label">Medication</div><div class="modal-val">${drug}</div></div>
-      <div class="modal-field"><div class="modal-label">Weeks on meds</div><div class="modal-val">${weeks}</div></div>
+      <div class="modal-field"><div class="modal-label">Days of therapy</div><div class="modal-val">${therapyDaysStr}</div></div>
       <div class="modal-field"><div class="modal-label">Last injection</div><div class="modal-val">${inj.lastText}</div></div>
       <div class="modal-field"><div class="modal-label">Next injection</div><div class="modal-val ${inj.overdue?'bad':''}">${inj.nextText}</div></div>
       <div class="modal-field full"><div class="modal-label">Side effects</div><div class="modal-val ${effects!=='None'?'warn':''}">${effects}</div></div>
@@ -1081,7 +1189,9 @@ function openProfile(idx){
   document.getElementById('profileDose').textContent=dose;
   document.getElementById('profileCurrentWeight').textContent=wt;
   document.getElementById('profileInitialWeight').textContent=fmt(startW,'kg');
-  document.getElementById('profileTherapyDays').textContent=p.therapy_days??p.weeks_on_medication??p.treatment_weeks??'—';
+  const inj=injectionScheduleFromPatient(p);
+  const therapyDisplay=inj.daysOnTherapy!=null?(inj.daysOnTherapy+' days'+(inj.weeksOnMeds!=null?' ('+inj.weeksOnMeds+' weeks)':'')+' of therapy'):(p.therapy_days!=null||p.weeks_on_medication!=null||p.treatment_weeks!=null?String(p.therapy_days??p.weeks_on_medication??p.treatment_weeks):'—');
+  document.getElementById('profileTherapyDays').textContent=therapyDisplay;
 
   document.getElementById('pmWeightLoss').textContent=totalLoss;
   document.getElementById('pmWeightLossPct').textContent=weightLossPct;
@@ -1102,8 +1212,6 @@ function openProfile(idx){
   document.getElementById('csInitial').textContent=fmt(startW,'kg');
   document.getElementById('csCurrent').textContent=wt;
   document.getElementById('csTarget').textContent=fmt(p.target_weight||p.target_weight_kg,'kg');
-
-  const inj=injectionScheduleFromPatient(p);
   const raLast=document.getElementById('raLastInj');
   const raNext=document.getElementById('raNextInj');
   raLast.textContent=inj.lastText;
@@ -1128,6 +1236,7 @@ function backToList(){
   if(weightChartInstance){ weightChartInstance.destroy(); weightChartInstance=null; }
   if(weightTabChartInstance){ weightTabChartInstance.destroy(); weightTabChartInstance=null; }
   currentPatient=null; currentPatientId=null;
+  render();
 }
 
 function switchProfileTab(name){
@@ -1244,18 +1353,30 @@ async function loadInjections(){
     const r=await fetch(`${API}/api/v1/doctors/patients/${currentPatientId}/injections?limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
     const d=await r.json().catch(()=>null);
     const stats=d.statistics||d.stats||{};
-    const list=(d.history||d.injections||d.data||[]);
-    document.getElementById('injTotal').textContent=stats.total_injections??list.length??'—';
+    const list=Array.isArray(d)?d:(d.history||d.injections||d.data||[]);
+    const listArr=Array.isArray(list)?list:[];
+    document.getElementById('injTotal').textContent=stats.total_injections??listArr.length??'—';
     document.getElementById('injAdherence').textContent=stats.adherence!=null?Math.round(stats.adherence)+'%':'—';
     document.getElementById('injMissed').textContent=stats.missed_doses??'—';
     var injDoseStr='—';
     if(currentPatient){ injDoseStr=currentPatient.current_dose!=null?currentPatient.current_dose+' mg':(currentPatient.dose||'—'); }
     document.getElementById('injDose').textContent=injDoseStr;
+    const profileTherapyEl=document.getElementById('profileTherapyDays');
+    if(listArr.length){
+      const firstDate=listArr.reduce((acc,i)=>{ const raw=i.date||i.injection_date||i.Date||i; const d=parseDateOnlyUTC(raw); return !d?acc:(!acc||d.getTime()<acc.getTime()?d:acc); },null);
+      const days=firstDate!=null?daysFromFirstInjectionDate(firstDate):null;
+      if(profileTherapyEl){
+        const weeks=days!=null?Math.floor(days/7):null;
+        profileTherapyEl.textContent=days!=null?(days+' days'+(weeks!=null?' ('+weeks+' weeks)':'')+' of therapy'):'—';
+      }
+      if(currentPatient) currentPatient._therapyDays=days;
+    }
     const container=document.getElementById('injectionHistoryList');
     if(!container) return;
-    if(!list.length){ container.innerHTML='<div class="placeholder-tab">No injections</div>'; return; }
-    container.innerHTML=list.slice(0,30).map(i=>{
-      const date=i.date?new Date(i.date).toLocaleDateString('en-GB'):'—';
+    if(!listArr.length){ container.innerHTML='<div class="placeholder-tab">No injections</div>'; return; }
+    container.innerHTML=listArr.slice(0,30).map(i=>{
+      const raw=i.date||i.injection_date||i.Date||i;
+      const date=raw?new Date(raw).toLocaleDateString('en-GB'):'—';
       const dose=i.dosage_mg!=null?i.dosage_mg:i.dose;
       return `<div class="inj-item"><span>${date}</span><span>${dose!=null?dose+' mg':''} ${(i.drug_type||i.drug||'').toString()}</span></div>`;
     }).join('');
