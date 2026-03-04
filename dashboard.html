@@ -579,6 +579,21 @@ function showLoadError(msg){
   if(spin) spin.style.display='none';
 }
 
+async function doLogin(){
+  const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:AUTH_EMAIL,password:AUTH_PASSWORD})});
+  if(!lr.ok) throw new Error('Login failed: '+lr.status);
+  const ld=await lr.json();
+  const tok=(ld.token&&(ld.token.access_token||ld.token.AccessToken))||ld.access_token;
+  if(!tok||typeof tok!=='string') throw new Error('Invalid login response');
+  token=tok.trim();
+  try{
+    localStorage.setItem('doctor_access_token',token);
+    if(ld.token&&(ld.token.refresh_token||ld.token.RefreshToken)) localStorage.setItem('doctor_refresh_token',ld.token.refresh_token||ld.token.RefreshToken);
+    if(ld.doctor) localStorage.setItem('doctor_data',JSON.stringify(ld.doctor));
+  }catch(e){}
+  return ld.doctor||{};
+}
+
 async function load(){
   const ov=document.getElementById('ov');
   const lt=document.getElementById('lt');
@@ -586,23 +601,8 @@ async function load(){
     lt.style.color='';
     ov.querySelector('.spin').style.display='';
     lt.textContent='Authenticating…';
-    token=localStorage.getItem('doctor_access_token');
-    if(!token||token==='null'||token==='undefined'){
-      const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:AUTH_EMAIL,password:AUTH_PASSWORD})});
-      if(!lr.ok) throw new Error('Login failed: '+lr.status);
-      const ld=await lr.json();
-      const tok=ld.token&&(ld.token.access_token||ld.token.AccessToken);
-      if(!tok) throw new Error('Invalid login response');
-      token=tok;
-      try{
-        localStorage.setItem('doctor_access_token',token);
-        if(ld.token&&(ld.token.refresh_token||ld.token.RefreshToken)) localStorage.setItem('doctor_refresh_token',ld.token.refresh_token||ld.token.RefreshToken);
-        if(ld.doctor) localStorage.setItem('doctor_data',JSON.stringify(ld.doctor));
-      }catch(e){}
-    }
-    let doc={};
-    try{ doc=JSON.parse(localStorage.getItem('doctor_data')||'{}'); }catch(e){}
-    document.getElementById('dn').textContent=doc.name||doc.email||AUTH_EMAIL.split('@')[0];
+    const doc=await doLogin();
+    document.getElementById('dn').textContent=(doc&&doc.name)||(doc&&doc.email)||AUTH_EMAIL.split('@')[0];
 
     lt.textContent='Loading patients…';
     let pg=1;
@@ -610,12 +610,7 @@ async function load(){
       let r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
       if(r.status===401){
         try{ localStorage.removeItem('doctor_access_token'); localStorage.removeItem('doctor_refresh_token'); localStorage.removeItem('doctor_data'); }catch(e){}
-        const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:AUTH_EMAIL,password:AUTH_PASSWORD})});
-        if(!lr.ok) throw new Error('Re-login failed: '+lr.status);
-        const ld=await lr.json();
-        token=ld.token&&(ld.token.access_token||ld.token.AccessToken);
-        if(!token) throw new Error('Invalid login response');
-        try{ localStorage.setItem('doctor_access_token',token); if(ld.doctor) localStorage.setItem('doctor_data',JSON.stringify(ld.doctor)); }catch(e){}
+        await doLogin();
         r=await fetch(`${API}/api/v1/doctors/patients?page=${pg}&limit=50`,{headers:{'Authorization':`Bearer ${token}`}});
       }
       if(!r.ok) throw new Error('Patients request failed: '+r.status);
