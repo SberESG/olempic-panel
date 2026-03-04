@@ -524,6 +524,9 @@ const PER = 12;
 const COLORS = ['linear-gradient(135deg,#0d9488,#0ea5e9)','linear-gradient(135deg,#7c3aed,#0d9488)','linear-gradient(135deg,#db2777,#9333ea)','linear-gradient(135deg,#0891b2,#0d9488)','linear-gradient(135deg,#1d4ed8,#7c3aed)','linear-gradient(135deg,#16a34a,#0d9488)','linear-gradient(135deg,#ea580c,#dc2626)','linear-gradient(135deg,#be185d,#9333ea)'];
 
 let all=[], filt=[], page=1, token=null;
+// Force-logout everyone after deploy by bumping this value.
+// Any user who opens the page with an older value will be logged out and asked to sign in again.
+const AUTH_EPOCH = '2026-03-04-01';
 const translationCache=new Map();
 const HAS_CYRILLIC=/[а-яА-ЯёЁ]/;
 
@@ -662,6 +665,18 @@ function logout(){
   showLogin();
 }
 
+function enforceAuthEpoch(){
+  try{
+    const cur=localStorage.getItem('auth_epoch');
+    if(cur!==AUTH_EPOCH){
+      localStorage.setItem('auth_epoch',AUTH_EPOCH);
+      localStorage.removeItem('doctor_access_token');
+      localStorage.removeItem('doctor_refresh_token');
+      localStorage.removeItem('doctor_data');
+    }
+  }catch(e){}
+}
+
 async function doLogin(email,password){
   const lr=await fetch(`${API}/api/v1/auth/login-doctor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:password})});
   if(!lr.ok){
@@ -710,6 +725,7 @@ async function loadPatients(){
 
 async function load(){
   try {
+    enforceAuthEpoch();
     token=(localStorage.getItem('doctor_access_token')||'').trim();
     if(!token||token==='null'||token==='undefined'){ showLogin(); return; }
 
